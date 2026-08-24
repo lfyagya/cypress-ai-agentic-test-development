@@ -3,6 +3,7 @@
   "version": 1,
   "framework": "cypress",
   "architecture": "Config \u2192 Commands \u2192 Tests",
+  "pattern": "command-first",
   "paths": {
     "testRoot": "cypress",
     "configRoot": "cypress/configs",

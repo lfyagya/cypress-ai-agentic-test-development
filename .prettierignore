@@ -43,6 +43,7 @@ scripts/engine/test-config-paths-honest.mjs
 .claude/hooks/rule-engine.mjs
 harness/concerns.mjs
 harness/profiles/bin/compose-harness-config.mjs
+harness/profiles/bin/test-compose-tiers.mjs
 scripts/backfill-ci-evidence.mjs
 scripts/check-requirement-consistency.mjs
 scripts/engine/check-drift.mjs

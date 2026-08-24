@@ -19,6 +19,7 @@
   "project": {
     "name": "cypress-ai-agentic-test-development",
     "architecture": "Config → Commands → Tests",
+    "pattern": "command-first",
     "testRoot": "cypress",
     "configRoot": "cypress/configs",
     "commandRoot": "cypress/support/commands",

@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, readJson } from "../../../scripts/lib/cli.mjs";
+import { CONCERNS, CONCERN_IDS } from "../../concerns.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ADAPTERS = path.join(HERE, "..", "adapters");
@@ -31,6 +32,89 @@ function resolveAdapters(profile, base) {
     );
   }
   return resolved;
+}
+
+/**
+ * Resolves the rule set for one project: Tier 2 concerns selected by the declared architecture,
+ * Tier 1 severities adjusted by recorded overrides, Tier 0 untouchable.
+ *
+ * This is where the tier model stops being metadata. Before it, `rules` was copied from the adapter
+ * baseline verbatim, so every project got every rule the framework had an opinion about — including
+ * the architecture rules that made the harness unadoptable for a POM codebase.
+ */
+export function resolveRules(base, profile) {
+  const pattern = profile.pattern ?? base.pattern;
+  if (!pattern) {
+    throw new Error(
+      `no architecture pattern: profile "${profile.key}" declares none and adapter ` +
+        `"${profile.adapter}" has no native pattern. Tier 2 concerns are selected by pattern, so ` +
+        `without one the engine cannot tell which apply.`,
+    );
+  }
+
+  const overrides = profile.ruleOverrides ?? {};
+  for (const [concernId, override] of Object.entries(overrides)) {
+    const concern = CONCERNS[concernId];
+    if (!concern) {
+      throw new Error(
+        `ruleOverrides names unknown concern "${concernId}". Known: ${CONCERN_IDS.join(", ")}`,
+      );
+    }
+    if (concern.tier === 0) {
+      throw new Error(
+        `ruleOverrides cannot touch "${concernId}": it is Tier 0, a trust boundary. ` +
+          `No project may downgrade it by any mechanism.`,
+      );
+    }
+    if (concern.tier === 2) {
+      throw new Error(
+        `ruleOverrides cannot set "${concernId}": it is Tier 2 and selected by the declared ` +
+          `pattern, not negotiated. Change "pattern" if this concern does not describe your ` +
+          `architecture.`,
+      );
+    }
+    if (override.severity === "off") {
+      throw new Error(
+        `ruleOverrides cannot switch "${concernId}" off. Tier 1 downgrades to "review", which ` +
+          `still scores at the gate; off would mean the declared rule reaches nothing.`,
+      );
+    }
+    if (!["block", "review"].includes(override.severity)) {
+      throw new Error(
+        `ruleOverrides."${concernId}".severity must be "block" or "review", got ` +
+          `"${override.severity}"`,
+      );
+    }
+    if (override.severity === "review" && !override.reason) {
+      throw new Error(
+        `ruleOverrides."${concernId}" downgrades to review with no reason. An unrecorded ` +
+          `exception is indistinguishable from a mistake, so the reason is required and is ` +
+          `carried into the generated instructions.`,
+      );
+    }
+  }
+
+  return base.rules
+    .filter((rule) => {
+      const concern = CONCERNS[rule.concern];
+      if (!concern) {
+        throw new Error(
+          `adapter rule "${rule.id}" names unknown concern "${rule.concern}"`,
+        );
+      }
+      if (concern.tier < 2) return true;
+      return (concern.patterns ?? []).includes(pattern);
+    })
+    .map((rule) => {
+      const override = overrides[rule.concern];
+      if (!override) return rule;
+      return {
+        ...rule,
+        severity: override.severity,
+        ...(override.reason ? { overrideReason: override.reason } : {}),
+        ...(override.ratchetBy ? { ratchetBy: override.ratchetBy } : {}),
+      };
+    });
 }
 
 export function compose(profile, adaptersDir = ADAPTERS) {
@@ -60,6 +144,7 @@ export function compose(profile, adaptersDir = ADAPTERS) {
     project: {
       name: profile.projectName,
       architecture: base.architecture,
+      pattern: profile.pattern ?? base.pattern,
       testRoot: base.paths.testRoot,
       configRoot: base.paths.configRoot,
       commandRoot: base.paths.commandRoot,
@@ -71,7 +156,7 @@ export function compose(profile, adaptersDir = ADAPTERS) {
       : {}),
     loops: { ...base.defaults.loops, ...(over.loops ?? {}) },
     qaFoundations: base.qaFoundations,
-    rules: base.rules,
+    rules: resolveRules(base, profile),
     agents: base.agents,
     hooks: base.hooks,
     ...(base.skills ? { skills: base.skills } : {}),
