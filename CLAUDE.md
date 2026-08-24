@@ -58,15 +58,17 @@ cypress/configs/** → cypress/support/commands/** → cypress/tests/**
 <!-- Generated from harness.config.json — run `npm run harness:sync`. Do not edit by hand. -->
 
 ```text
-NEVER  →  cy.wait(<number>)                                                cy.apiWait('@alias') or a state-based assertion
-NEVER  →  a selector literal in a spec or command                          constants from cypress/configs/ui/**
-NEVER  →  a URL literal in cy.visit()                                      constants from cypress/configs/app/routes.js
-NEVER  →  *.actions.js files or page-object wrappers                       custom cy.* commands — command-first only
-NEVER  →  an auth-required spec without an auth call                       cy.ensureAuthenticated() in beforeEach(), or the module's own auth command plus the // @no-ensureAuthenticated pragma
-NEVER  →  a password, secret, API key or token assigned a literal string   cy.env([...]) reading cypress.env.json (gitignored) or a CI secret
-NEVER  →  POST/PUT/PATCH/DELETE in a smoke spec                            read-only assertions; put mutations in the e2e tier
-NEVER  →  a new config, command or spec without searching first            grep the literal selector/endpoint/route across configs and commands — search by value, not filename
-NEVER  →  a spec with no requirement tag, or more than one                 exactly one known requirement id in the title and as a tag, plus Type, Priority, and tier tags
+NEVER  →  cy.wait(<number>)                                                        cy.apiWait('@alias') or a state-based assertion
+NEVER  →  a selector literal in a spec or command                                  constants from cypress/configs/ui/**
+NEVER  →  a URL literal in cy.visit()                                              constants from cypress/configs/app/routes.js
+NEVER  →  *.actions.js files or page-object wrappers                               custom cy.* commands — command-first only
+NEVER  →  an auth-required spec without an auth call                               cy.ensureAuthenticated() in beforeEach(), or the module's own auth command plus the // @no-ensureAuthenticated pragma
+NEVER  →  a password, secret, API key or token assigned a literal string           cy.env([...]) reading cypress.env.json (gitignored) or a CI secret
+NEVER  →  POST/PUT/PATCH/DELETE in a smoke spec                                    read-only assertions; put mutations in the e2e tier
+NEVER  →  skip semantic locators without a reason                                  cy.findByRole(), cy.findByLabelText(), cy.findByText(), then cy.getByTestId()
+NEVER  →  use .eq(), .first() or .last() where a filter can identify the element   .filter(), .contains(), or .within() to disambiguate by content or ancestor
+NEVER  →  a new config, command or spec without searching first                    grep the literal selector/endpoint/route across configs and commands — search by value, not filename
+NEVER  →  a spec with no requirement tag, or more than one                         exactly one known requirement id in the title and as a tag, plus Type, Priority, and tier tags
 ```
 
 | Rule | Why it exists | Enforcement |
@@ -78,6 +80,8 @@ NEVER  →  a spec with no requirement tag, or more than one                 exa
 | `require-auth-command` | Session setup belongs in one place, not repeated per test. | Hook + CI |
 | `no-credential-literal` | Trust boundary. A committed credential is a breach, not a style issue. | Hook + CI |
 | `smoke-read-only` | Smoke runs against shared and production-like environments. | Hook + CI |
+| `locator-priority` | Semantic locators are more stable and accessible. | QA gate |
+| `narrow-before-index` | Index-based locators silently target the wrong element when the UI changes. | QA gate |
 | `search-before-create` | A filename check that finds nothing is not a value check that finds nothing. Duplicate owners are the most common review failure. | QA gate |
 | `one-requirement-tag` | The title survives every reporter and the tag supports filtering; together they make coverage computable. | Hook + CI |
 

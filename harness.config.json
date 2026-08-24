@@ -98,6 +98,24 @@
       "message": "Write request in smoke suite. Smoke tests must remain read-only."
     },
     {
+      "id": "locator-priority",
+      "severity": "review",
+      "enforcement": "QA gate",
+      "never": "skip semantic locators without a reason",
+      "instead": "cy.findByRole(), cy.findByLabelText(), cy.findByText(), then cy.getByTestId()",
+      "why": "Semantic locators are more stable and accessible.",
+      "message": "Follow the configured locator priority."
+    },
+    {
+      "id": "narrow-before-index",
+      "severity": "review",
+      "enforcement": "QA gate",
+      "never": "use .eq(), .first() or .last() where a filter can identify the element",
+      "instead": ".filter(), .contains(), or .within() to disambiguate by content or ancestor",
+      "why": "Index-based locators silently target the wrong element when the UI changes.",
+      "message": "Narrow the locator with a filter before using an index."
+    },
+    {
       "id": "search-before-create",
       "severity": "review",
       "enforcement": "QA gate",
