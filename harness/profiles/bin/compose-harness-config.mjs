@@ -145,10 +145,10 @@ export function compose(profile, adaptersDir = ADAPTERS) {
       name: profile.projectName,
       architecture: base.architecture,
       pattern: profile.pattern ?? base.pattern,
-      testRoot: base.paths.testRoot,
-      configRoot: base.paths.configRoot,
-      commandRoot: base.paths.commandRoot,
-      specGlob: base.paths.specGlob,
+      // D3 topology: a project declares its own tree, falling back to the adapter's layout.
+      // The rule patterns derive from these, so a declared root that does not exist on disk is
+      // caught by test-config-paths-honest rather than silently scanning nothing.
+      ...{ ...base.paths, ...(profile.paths ?? {}) },
     },
     context: { ...base.defaults.context, ...(over.context ?? {}) },
     ...(base.defaults.env || over.env

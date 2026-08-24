@@ -15,6 +15,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Every rule matches on extension, so the extension list lives here once. A TypeScript spec that
 // slips past this list silently loses every block-severity rule — identical code, zero violations —
@@ -24,6 +25,66 @@ export const SCRIPT_EXT = String.raw`(?:m|c)?[jt]s`; // js, mjs, cjs, ts, mts, c
 
 export function toPosix(p) {
   return p.replaceAll("\\", "/");
+}
+
+/** Escapes a declared path so it can be embedded in a rule regex literally. */
+export function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Reads `project` out of the repo's composed config, for a patterns module that needs the declared
+ * roots to build its regexes.
+ *
+ * This is the derivation the conformance spec §7.1 warns about: with the roots hardcoded, a config
+ * typo was merely inert; derived, a typo could stop every rule matching while CI still reported
+ * green. Two things make it safe, and both are asserted in test-config-paths-honest — the declared
+ * roots must exist on disk, which is what actually catches a typo, and the resulting scanner must
+ * match inside the declared root and *not* outside it.
+ *
+ * A missing or broken config throws rather than falling back to a literal. A fallback would be a
+ * second, silent source of truth for the very thing this removes — and a broken config is already
+ * blocked upstream by the profile gate, so nothing is left half-working.
+ */
+export function readProjectPaths(hooksModuleUrl) {
+  const repoRoot = path.resolve(
+    path.dirname(fileURLToPath(hooksModuleUrl)),
+    "..",
+    "..",
+  );
+  const configPath = path.join(repoRoot, "harness.config.json");
+  let project;
+  try {
+    project = JSON.parse(fs.readFileSync(configPath, "utf8")).project;
+  } catch (error) {
+    throw new Error(
+      `cannot read project paths from ${configPath}: ${error.message}. Rule patterns are derived ` +
+        `from the declared roots, so an unreadable config must fail loudly rather than scan nothing.`,
+    );
+  }
+  for (const key of ["testRoot", "commandRoot", "specGlob"]) {
+    if (!project?.[key]) {
+      throw new Error(`harness.config.json project.${key} is missing`);
+    }
+  }
+
+  // A declared root that does not exist on disk is the silent-failure mode this derivation
+  // introduces, and it is not hypothetical: with a typo'd testRoot the scanner's scope collapses,
+  // so `check:rules` reports a clean tree while a spec with a hardcoded credential sits in it.
+  // test-config-paths-honest catches the typo, but only if someone runs it — the hook and the rules
+  // validator do not. So the scanner refuses to build at all rather than build a scope that matches
+  // nothing. Loud beats green-and-wrong.
+  for (const key of ["testRoot", "commandRoot"]) {
+    const declared = path.join(repoRoot, project[key]);
+    if (!fs.existsSync(declared)) {
+      throw new Error(
+        `harness.config.json project.${key} is "${project[key]}" but that directory does not ` +
+          `exist. Rule patterns are derived from it, so scanning would silently match nothing and ` +
+          `every block rule would pass on a file that violates all of them.`,
+      );
+    }
+  }
+  return project;
 }
 
 /**
@@ -200,8 +261,12 @@ export function scanForRegex(
  * Builds the scanner from an adapter's rule table.
  *
  * A rule is either pattern-driven or structural:
- *   { concern, fallback, appliesTo?, pattern, messageBuilder? }   regex scan
- *   { concern, fallback, appliesTo?, check }                      arbitrary detection
+ *   { ruleId, fallback, appliesTo?, pattern, messageBuilder? }   regex scan
+ *   { ruleId, fallback, appliesTo?, check }                      arbitrary detection
+ *
+ * `ruleId` is the ADAPTER's name for the rule (`no-hard-wait`), which is how the message is looked
+ * up in harness.config.json. It is deliberately not called `concern`: a concern id (`WAIT`) is the
+ * framework-neutral identity in the registry, and one concern can own several adapter rules.
  *
  * `check` exists because some rules are not expressible as one regex — a requirement-tag
  * audit walks every test call and its options object. The adapter owns that detection;
@@ -226,7 +291,7 @@ export function makeScanner({ targetFileRe, rules }) {
 
     for (const rule of rules) {
       if (rule.appliesTo && !rule.appliesTo(normalized)) continue;
-      const message = messages[rule.concern] || rule.fallback;
+      const message = messages[rule.ruleId] || rule.fallback;
 
       if (rule.check) {
         rule.check({

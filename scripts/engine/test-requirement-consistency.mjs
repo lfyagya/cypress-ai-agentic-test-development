@@ -87,6 +87,17 @@ try {
     path.join(temporaryRoot, "harness.config.json"),
     `${JSON.stringify(config, null, 2)}\n`,
   );
+  // Every declared root must exist: the patterns module refuses to build a scanner against a root
+  // that is not on disk, because a scope that matches nothing reports a clean tree. A fixture that
+  // only created testRoot was not a valid clone.
+  for (const key of ["testRoot", "configRoot", "commandRoot"]) {
+    if (config.project[key]) {
+      fs.mkdirSync(path.join(temporaryRoot, config.project[key]), {
+        recursive: true,
+      });
+    }
+  }
+
   const hooksDirectory = path.join(temporaryRoot, ".claude", "hooks");
   fs.mkdirSync(hooksDirectory, { recursive: true });
   for (const file of [`${framework}.patterns.mjs`, "rule-engine.mjs"]) {

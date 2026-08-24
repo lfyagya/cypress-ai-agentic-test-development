@@ -8,10 +8,17 @@
 
 import {
   SCRIPT_EXT,
+  escapeRegex,
   extractBalancedObject,
   isAllowedLiteral,
   lineNumberForIndex,
+  readProjectPaths,
 } from "./rule-engine.mjs";
+
+// Roots come from the composed config, so a project can declare its own tree. See
+// readProjectPaths for why this derivation is safe and what asserts it.
+const { testRoot } = readProjectPaths(import.meta.url);
+const ROOT = escapeRegex(testRoot);
 
 const SPEC_RE = new RegExp(String.raw`\.cy\.${SCRIPT_EXT}$`, "i");
 const COMMANDS_RE = new RegExp(String.raw`\.commands\.${SCRIPT_EXT}$`, "i");
@@ -21,15 +28,15 @@ const SPEC_OR_COMMANDS_RE = new RegExp(
   "i",
 );
 const TESTS_SPEC_RE = new RegExp(
-  String.raw`cypress[\\/]tests[\\/].*\.cy\.${SCRIPT_EXT}$`,
+  String.raw`${ROOT}[\\/]tests[\\/].*\.cy\.${SCRIPT_EXT}$`,
   "i",
 );
 const SMOKE_SPEC_RE = new RegExp(
-  String.raw`cypress[\\/]tests[\\/].*[\\/]smoke[\\/].*\.cy\.${SCRIPT_EXT}$`,
+  String.raw`${ROOT}[\\/]tests[\\/].*[\\/]smoke[\\/].*\.cy\.${SCRIPT_EXT}$`,
   "i",
 );
 const TARGET_FILE_RE = new RegExp(
-  String.raw`cypress[\\/].*\.${SCRIPT_EXT}$`,
+  String.raw`${ROOT}[\\/].*\.${SCRIPT_EXT}$`,
   "i",
 );
 
@@ -60,13 +67,13 @@ const PRIORITY_TAGS = new Set(["P0", "P1", "P2"]);
 
 export const rules = [
   {
-    concern: "no-hard-wait",
+    ruleId: "no-hard-wait",
     fallback:
       "Hard wait detected. Replace with cy.apiWait(...) or a deterministic state-based wait.",
     pattern: /\bcy\.wait\(\s*\d+\s*\)/g,
   },
   {
-    concern: "no-page-object",
+    ruleId: "no-page-object",
     fallback:
       "Action class or page-object wrapper detected. Use command-first architecture.",
     check: ({ filePath, content, push }) => {
@@ -80,7 +87,7 @@ export const rules = [
     },
   },
   {
-    concern: "no-page-object",
+    ruleId: "no-page-object",
     fallback:
       "Action class import detected. Command-first architecture forbids *.actions.js dependencies.",
     pattern: new RegExp(
@@ -89,13 +96,13 @@ export const rules = [
     ),
   },
   {
-    concern: "no-page-object",
+    ruleId: "no-page-object",
     fallback:
       "Page-object import detected. Command-first architecture forbids page-object dependencies.",
     pattern: /from\s+['"][^'"]*(page-obj|pageobject|page-object)[^'"]*['"]/gi,
   },
   {
-    concern: "no-hardcoded-selector",
+    ruleId: "no-hardcoded-selector",
     fallback: null,
     appliesTo: (p) => SPEC_OR_COMMANDS_RE.test(p),
     pattern: /\bcy\.(get|find)\(\s*['"](?!@)([^'"]+)['"]\s*\)/g,
@@ -109,7 +116,7 @@ export const rules = [
     },
   },
   {
-    concern: "no-hardcoded-route",
+    ruleId: "no-hardcoded-route",
     fallback: null,
     appliesTo: (p) => SPEC_OR_COMMANDS_RE.test(p),
     pattern: /\bcy\.visit\(\s*['"]([^'"]+)['"]\s*\)/g,
@@ -125,7 +132,7 @@ export const rules = [
   },
   {
     // Bypass with pragma: // @no-ensureAuthenticated (for modules with their own auth command)
-    concern: "require-auth-command",
+    ruleId: "require-auth-command",
     fallback: "Missing cy.ensureAuthenticated() in auth-required test file.",
     appliesTo: (p) => TESTS_SPEC_RE.test(p),
     check: ({ filePath, content, push }) => {
@@ -143,7 +150,7 @@ export const rules = [
   {
     // Trust boundary — never relaxed. Values starting with $ are skipped so
     // environment-variable interpolation passes.
-    concern: "no-credential-literal",
+    ruleId: "no-credential-literal",
     fallback: null,
     pattern:
       /\b(password|passwd|secret|api[_-]?key|auth[_-]?token|access[_-]?token)\s*[:=]\s*["'`]([^"'`$][^"'`]{3,})["'`]/gi,
@@ -156,7 +163,7 @@ export const rules = [
     // requirement id matching the requirement tag. This is a structural, single-file check —
     // whether the id is *active* and unique across the repository is graded by evidence:build and
     // check:requirements, which can see cross-file and cross-branch state a write-time hook cannot.
-    concern: "one-requirement-tag",
+    ruleId: "one-requirement-tag",
     fallback:
       "Spec must carry exactly one known requirement id in its title and tags.",
     appliesTo: (p) => TESTS_SPEC_RE.test(p),
@@ -242,14 +249,14 @@ export const rules = [
     },
   },
   {
-    concern: "smoke-read-only",
+    ruleId: "smoke-read-only",
     fallback:
       "Write request in smoke suite. Smoke tests must remain read-only.",
     appliesTo: (p) => SMOKE_SPEC_RE.test(p),
     pattern: /\bcy\.request\(\s*['"](POST|PUT|PATCH|DELETE)['"]/gi,
   },
   {
-    concern: "smoke-read-only",
+    ruleId: "smoke-read-only",
     fallback:
       "Write HTTP method in smoke suite. Smoke tests must remain read-only.",
     appliesTo: (p) => SMOKE_SPEC_RE.test(p),
