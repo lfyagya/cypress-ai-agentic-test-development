@@ -46,6 +46,13 @@ export const EXTENSION_PATTERNS = {
 
 export const targetFileRe = TARGET_FILE_RE;
 
+// Framework idiom, exported for engine scripts that need to find test titles without knowing
+// which framework they are in. Group 2 is the [REQUIREMENT-ID] prefix.
+// Kept here rather than in the engine because "what a test call looks like" is exactly the kind
+// of adapter knowledge L1 must not contain.
+export const testTitleRe =
+  /\b(?:it|specify)(?:\.\w+)?\s*\(\s*(['"`])\s*\[([^\]]+)\][\s\S]*?\1/g;
+
 // Requirement id shape, e.g. AE-PRODUCTS-001 or REQ-1: uppercase segments joined by hyphens.
 const REQUIREMENT_ID = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/;
 const TYPE_TAGS = new Set(["smoke", "regression"]);

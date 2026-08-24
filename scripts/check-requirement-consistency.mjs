@@ -10,7 +10,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs, readJson } from "./lib/cli.mjs";
 
 const DEFAULT_ROOT = path.resolve(
@@ -85,24 +85,65 @@ export function loadBaseRequirements(baseRef, repoRoot = DEFAULT_ROOT) {
   }
 }
 
-function walk(directory) {
+// Framework couplings, all resolved from declared facts instead of hardcoded:
+//   testRoot           <- harness.config.json project.testRoot
+//   specFileRe         <- project.specGlob's declared suffix
+//   adapterTestTitleRe <- the adapter's own patterns module
+// Before this the check walked "cypress/tests" and matched it()/specify() literally, so in any
+// other adapter it found zero specs and reported zero unknown ids -- which reads exactly like
+// success. A guard that cannot fail is worse than an absent one.
+function harnessConfig(repoRoot) {
+  return readJson(path.join(repoRoot, "harness.config.json"));
+}
+
+function testRoot(repoRoot) {
+  return harnessConfig(repoRoot).project.testRoot;
+}
+
+function specFileRe(repoRoot) {
+  const glob = harnessConfig(repoRoot).project.specGlob;
+  const suffix = path.basename(glob).match(/^\*\.([A-Za-z]+)\./)?.[1];
+  if (!suffix) {
+    throw new Error(
+      `cannot derive the spec suffix from project.specGlob "${glob}" — expected a basename ` +
+        `like "*.spec.ts" or "*.cy.{js,ts}"`,
+    );
+  }
+  return new RegExp(`\\.${suffix}\\.(?:m|c)?[jt]s$`, "i");
+}
+
+async function adapterTestTitleRe(repoRoot) {
+  const { framework } = harnessConfig(repoRoot);
+  const mod = await import(
+    pathToFileURL(
+      path.join(repoRoot, ".claude", "hooks", framework + ".patterns.mjs"),
+    ).href
+  );
+  if (!mod.testTitleRe) {
+    throw new Error(framework + ".patterns.mjs must export testTitleRe");
+  }
+  return new RegExp(mod.testTitleRe.source, mod.testTitleRe.flags);
+}
+
+function walk(directory, isSpec) {
   if (!fs.existsSync(directory)) return [];
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return walk(fullPath);
-    return /\.cy\.(?:m|c)?[jt]s$/i.test(entry.name) ? [fullPath] : [];
+    if (entry.isDirectory()) return walk(fullPath, isSpec);
+    return isSpec.test(entry.name) ? [fullPath] : [];
   });
 }
 
-export function findUnknownSpecRequirementIds(
+export async function findUnknownSpecRequirementIds(
   repoRoot,
   activeIds,
   readFile = (file) => fs.readFileSync(file, "utf8"),
 ) {
   const unknown = new Set();
-  const testTitle =
-    /\b(?:it|specify)(?:\.\w+)?\s*\(\s*(['"`])\s*\[([^\]]+)\][\s\S]*?\1/g;
-  for (const file of walk(path.join(repoRoot, "cypress", "tests"))) {
+  const testTitle = await adapterTestTitleRe(repoRoot);
+  const isSpec = specFileRe(repoRoot);
+  const specs = walk(path.join(repoRoot, testRoot(repoRoot), "tests"), isSpec);
+  for (const file of specs) {
     const content = readFile(file);
     let match;
     while ((match = testTitle.exec(content)) !== null) {
@@ -112,7 +153,7 @@ export function findUnknownSpecRequirementIds(
   return [...unknown].sort();
 }
 
-export function checkRequirements({
+export async function checkRequirements({
   repoRoot = DEFAULT_ROOT,
   baseRef = "origin/main",
 } = {}) {
@@ -127,7 +168,7 @@ export function checkRequirements({
 
   const local = registry.requirements;
   const activeIds = validateLocalRequirements(local);
-  const unknown = findUnknownSpecRequirementIds(repoRoot, activeIds);
+  const unknown = await findUnknownSpecRequirementIds(repoRoot, activeIds);
   if (unknown.length > 0) {
     throw new Error(
       `spec requirement id(s) are not active in evidence/requirements.json: ${unknown.join(", ")}`,
@@ -165,7 +206,7 @@ const isMain =
 if (isMain) {
   try {
     const args = parseArgs(process.argv.slice(2));
-    const result = checkRequirements({
+    const result = await checkRequirements({
       baseRef:
         typeof args["base-ref"] === "string" ? args["base-ref"] : "origin/main",
     });
