@@ -39,13 +39,17 @@ scripts/engine/test-block-rules-enforced.mjs
 scripts/engine/test-config-paths-honest.mjs
 
 # BEGIN lf-qa-harness-os (generated — do not edit)
+.claude/hooks/harness-config-gate.mjs
 .claude/hooks/rule-engine.mjs
 harness/profiles/bin/compose-harness-config.mjs
 scripts/backfill-ci-evidence.mjs
 scripts/engine/check-drift.mjs
+scripts/engine/config-ready.mjs
+scripts/engine/lock-profile.mjs
 scripts/engine/sync.mjs
 scripts/engine/templates.mjs
 scripts/engine/test-config-paths-honest.mjs
+scripts/engine/test-config-ready.mjs
 scripts/evidence.mjs
 scripts/lib/cli.mjs
 scripts/record-evidence.mjs
