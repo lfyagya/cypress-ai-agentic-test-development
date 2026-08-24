@@ -42,6 +42,7 @@ scripts/engine/test-config-paths-honest.mjs
 .claude/hooks/harness-config-gate.mjs
 .claude/hooks/rule-engine.mjs
 harness/concerns.mjs
+harness/patterns.mjs
 harness/profiles/bin/compose-harness-config.mjs
 harness/profiles/bin/test-compose-tiers.mjs
 scripts/backfill-ci-evidence.mjs
@@ -54,6 +55,7 @@ scripts/engine/templates.mjs
 scripts/engine/test-concerns.mjs
 scripts/engine/test-config-paths-honest.mjs
 scripts/engine/test-config-ready.mjs
+scripts/engine/test-patterns.mjs
 scripts/engine/test-requirement-consistency.mjs
 scripts/evidence.mjs
 scripts/lib/cli.mjs

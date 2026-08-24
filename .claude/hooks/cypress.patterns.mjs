@@ -14,17 +14,39 @@ import {
   lineNumberForIndex,
   readProjectPaths,
 } from "./rule-engine.mjs";
+import { codeSuffixesFor, scanRootsFor } from "../../harness/patterns.mjs";
 
 // Roots come from the composed config, so a project can declare its own tree. See
 // readProjectPaths for why this derivation is safe and what asserts it.
-const { testRoot } = readProjectPaths(import.meta.url);
+const project = readProjectPaths(import.meta.url);
+const { testRoot, pattern } = project;
 const ROOT = escapeRegex(testRoot);
+
+// This adapter's name for each pattern-level file kind (L3). Cypress has no `.fixture.` or
+// `.setup.` file convention, so those kinds are deliberately absent and drop out of the code
+// scope rather than widening it to files this framework never produces.
+const KIND_SUFFIX = {
+  spec: "cy",
+  commands: "commands",
+  helpers: "helpers",
+  page: "page",
+  steps: "steps",
+  data: "data",
+};
+
+// Which files the implementation rules scan is an architecture question. A POM project on this
+// adapter keeps selectors in page objects, so `page` counts as code there.
+const codeSuffixes = codeSuffixesFor(pattern, KIND_SUFFIX);
+
+const SCAN_ROOTS = scanRootsFor(pattern, project)
+  .map((root) => escapeRegex(root))
+  .join("|");
 
 const SPEC_RE = new RegExp(String.raw`\.cy\.${SCRIPT_EXT}$`, "i");
 const COMMANDS_RE = new RegExp(String.raw`\.commands\.${SCRIPT_EXT}$`, "i");
 const ACTIONS_RE = new RegExp(String.raw`\.actions\.${SCRIPT_EXT}$`, "i");
 const SPEC_OR_COMMANDS_RE = new RegExp(
-  String.raw`\.(?:cy|commands)\.${SCRIPT_EXT}$`,
+  String.raw`\.(?:${codeSuffixes.join("|")})\.${SCRIPT_EXT}$`,
   "i",
 );
 const TESTS_SPEC_RE = new RegExp(
@@ -36,7 +58,7 @@ const SMOKE_SPEC_RE = new RegExp(
   "i",
 );
 const TARGET_FILE_RE = new RegExp(
-  String.raw`${ROOT}[\\/].*\.${SCRIPT_EXT}$`,
+  String.raw`(?:${SCAN_ROOTS})[\\/].*\.${SCRIPT_EXT}$`,
   "i",
 );
 
