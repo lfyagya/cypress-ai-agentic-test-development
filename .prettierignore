@@ -41,5 +41,6 @@ scripts/engine/test-config-paths-honest.mjs
 # BEGIN lf-qa-harness-os (generated — do not edit)
 harness/profiles/bin/compose-harness-config.mjs
 scripts/backfill-ci-evidence.mjs
+scripts/engine/test-config-paths-honest.mjs
 scripts/lib/cli.mjs
 # END lf-qa-harness-os
