@@ -37,6 +37,7 @@
   "rules": [
     {
       "id": "no-hard-wait",
+      "concern": "WAIT",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "cy.wait(<number>)",
@@ -46,6 +47,7 @@
     },
     {
       "id": "no-hardcoded-selector",
+      "concern": "SELECTOR",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a selector literal in a spec or command",
@@ -55,6 +57,7 @@
     },
     {
       "id": "no-hardcoded-route",
+      "concern": "ROUTE",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a URL literal in cy.visit()",
@@ -64,6 +67,7 @@
     },
     {
       "id": "no-page-object",
+      "concern": "ARCH-BOUNDARY",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "*.actions.js files or page-object wrappers",
@@ -73,6 +77,7 @@
     },
     {
       "id": "require-auth-command",
+      "concern": "CACHED-AUTH",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "an auth-required spec without an auth call",
@@ -82,6 +87,7 @@
     },
     {
       "id": "no-credential-literal",
+      "concern": "CRED",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a password, secret, API key or token assigned a literal string",
@@ -91,6 +97,7 @@
     },
     {
       "id": "smoke-read-only",
+      "concern": "SMOKE-RO",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "POST/PUT/PATCH/DELETE in a smoke spec",
@@ -100,6 +107,7 @@
     },
     {
       "id": "locator-priority",
+      "concern": "LOCATOR-PRIORITY",
       "severity": "review",
       "enforcement": "QA gate",
       "never": "skip semantic locators without a reason",
@@ -109,6 +117,7 @@
     },
     {
       "id": "narrow-before-index",
+      "concern": "LOCATOR-NARROW",
       "severity": "review",
       "enforcement": "QA gate",
       "never": "use .eq(), .first() or .last() where a filter can identify the element",
@@ -118,6 +127,7 @@
     },
     {
       "id": "search-before-create",
+      "concern": "SEARCH-FIRST",
       "severity": "review",
       "enforcement": "QA gate",
       "never": "a new config, command or spec without searching first",
@@ -127,6 +137,7 @@
     },
     {
       "id": "one-requirement-tag",
+      "concern": "TRACE",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a spec with no requirement tag, or more than one",
