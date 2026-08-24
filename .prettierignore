@@ -49,6 +49,7 @@ scripts/backfill-ci-evidence.mjs
 scripts/check-requirement-consistency.mjs
 scripts/engine/check-drift.mjs
 scripts/engine/config-ready.mjs
+scripts/engine/install-overlay.mjs
 scripts/engine/lock-profile.mjs
 scripts/engine/sync.mjs
 scripts/engine/templates.mjs

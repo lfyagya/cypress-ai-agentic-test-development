@@ -64,13 +64,31 @@ function reconcileAgentDirectory(relativeDirectory, expected) {
   }
 }
 
-function syncRules(relativePath) {
+// CLAUDE.md is the harness's instruction surface, so a missing marker pair there is an error.
+// README.md is the consumer's front door: an overlaid repo may not have one, or may have one it
+// does not want a generated block in. Spec §5 names CLAUDE.md only, so README is optional and
+// skipping it is reported rather than silent.
+function syncRules(relativePath, { required = true } = {}) {
   const target = path.join(root, relativePath);
+  if (!fs.existsSync(target)) {
+    if (required) {
+      throw new Error(
+        `${relativePath} is required for the rules block and does not exist`,
+      );
+    }
+    console.log(`skipped ${relativePath} (absent)`);
+    return;
+  }
   const content = injectRules(fs.readFileSync(target, "utf8"), config);
-  if (!content)
-    throw new Error(
-      `${relativePath} needs exactly one HARNESS:RULES marker pair`,
-    );
+  if (!content) {
+    if (required) {
+      throw new Error(
+        `${relativePath} needs exactly one HARNESS:RULES marker pair`,
+      );
+    }
+    console.log(`skipped ${relativePath} (no HARNESS:RULES markers)`);
+    return;
+  }
   write(relativePath, content);
 }
 
@@ -200,4 +218,4 @@ if (adapterEnabled(config, "codex")) {
 
 syncSkills();
 syncRules("CLAUDE.md");
-syncRules("README.md");
+syncRules("README.md", { required: false });

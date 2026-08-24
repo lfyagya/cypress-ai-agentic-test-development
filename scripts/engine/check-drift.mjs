@@ -174,10 +174,24 @@ if (adapterEnabled(config, "codex")) {
 checkSkillProjection(".claude/skills", adapterEnabled(config, "claude"));
 checkSkillProjection(".agents/skills", portableSkillsEnabled(config));
 
-for (const doc of ["CLAUDE.md", "README.md"]) {
-  const actual = fs.readFileSync(path.join(root, doc), "utf8");
+// Same asymmetry as sync: CLAUDE.md must carry the block, README.md may not exist in an overlaid
+// repo. A README that is absent or unmarked is not drift.
+for (const [doc, required] of [
+  ["CLAUDE.md", true],
+  ["README.md", false],
+]) {
+  const file = path.join(root, doc);
+  if (!fs.existsSync(file)) {
+    if (required) failures.push(doc);
+    continue;
+  }
+  const actual = fs.readFileSync(file, "utf8");
   const expected = injectRules(actual, config);
-  if (!expected || actual !== expected) failures.push(doc);
+  if (!expected) {
+    if (required) failures.push(doc);
+    continue;
+  }
+  if (actual !== expected) failures.push(doc);
 }
 
 if (failures.length) {
