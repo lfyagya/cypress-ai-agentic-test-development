@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Appends validated entries to the evidence ledgers that feed M1 and M2.
+// Appends validated entries to the evidence ledgers that feed M1, M2, and M4.
 // scripts/evidence.mjs READS these; nothing else writes them.
 //
 //   node scripts/record-evidence.mjs gate   --requirement <id> --attempt 1 --verdict PASS
 //   node scripts/record-evidence.mjs gate   --requirement <id> --attempt 1 --verdict PASS_WITH_ACTIONS \
 //        --actions "named follow-up|another follow-up" [--resolution "optional note"]
 //   node scripts/record-evidence.mjs ci     --pipeline <id> --trigger pr --attempt 1 --outcome passed
+//   node scripts/record-evidence.mjs effort --requirement <id> --minutes 45
 //
 // Validation is the point. A typo'd requirement id or an out-of-range verdict would not crash
 // evidence.mjs — it would silently drop the row and quietly understate the metric. Garbage in a
@@ -23,6 +24,7 @@ const OUTCOMES = new Set(["passed", "failed"]);
 const LEDGERS = {
   gate: "gate-log.jsonl",
   ci: "ci-history.jsonl",
+  effort: "effort-log.jsonl",
 };
 
 function requirementIds(root) {
@@ -137,6 +139,18 @@ export function buildEntry(
     };
   }
 
+  if (kind === "effort") {
+    const minutes = Number(args.minutes);
+    if (!Number.isFinite(minutes) || minutes <= 0)
+      throw new Error("--minutes must be a number > 0");
+    return {
+      requirementId: knownRequirement(root, args.requirement),
+      minutes,
+      accepted: args.accepted === undefined ? true : args.accepted !== "false",
+      timestamp: args.timestamp ?? now,
+    };
+  }
+
   throw new Error(
     `Unknown ledger "${kind}". Use: ${Object.keys(LEDGERS).join(" | ")}`,
   );
@@ -190,6 +204,7 @@ if (isMain) {
           "  record-evidence.mjs gate   --requirement <id> --attempt <n> --verdict PASS|PASS_WITH_ACTIONS|BLOCK",
           '                         [--actions "a|b" --resolution "note"]  # required/only for PASS_WITH_ACTIONS',
           "  record-evidence.mjs ci     --pipeline <id> --trigger pr|push|manual|schedule --attempt <n> --outcome passed|failed [--failure-class ENV]",
+          "  record-evidence.mjs effort --requirement <id> --minutes <n> [--accepted false]",
           "",
           "PASS_WITH_ACTIONS means merge-ready now with named non-blocking follow-ups (preserved on",
           "the row). Only attempt 1 counts toward M1 and M2 — measuring after repairs measures",

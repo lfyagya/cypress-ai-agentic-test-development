@@ -52,7 +52,10 @@ function validateConfig(config) {
     "adapters must be an object",
   );
   const adapterKeys = Object.keys(config.adapters);
-  requireValue(adapterKeys.length > 0, "adapters must declare at least one tool");
+  requireValue(
+    adapterKeys.length > 0,
+    "adapters must declare at least one tool",
+  );
   for (const adapter of adapterKeys) {
     requireValue(
       KNOWN_ADAPTERS.includes(adapter),
@@ -69,7 +72,10 @@ function validateConfig(config) {
     SUPPORTED_AGENT_EXTENSIONS.has(extension),
     "agentFileExtension must be .md or .agent.md",
   );
-  requireValue(Array.isArray(config.rules) && config.rules.length > 0, "rules must not be empty");
+  requireValue(
+    Array.isArray(config.rules) && config.rules.length > 0,
+    "rules must not be empty",
+  );
   requireValue(
     Array.isArray(config.agents) && config.agents.length > 0,
     "agents must not be empty",
@@ -87,7 +93,10 @@ function validateConfig(config) {
 
   const ruleIds = new Set();
   for (const rule of config.rules) {
-    requireValue(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rule.id), `invalid rule id: ${rule.id}`);
+    requireValue(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rule.id),
+      `invalid rule id: ${rule.id}`,
+    );
     requireValue(!ruleIds.has(rule.id), `duplicate rule id: ${rule.id}`);
     requireValue(
       SUPPORTED_ENFORCEMENT.has(rule.enforcement),
@@ -102,7 +111,10 @@ function validateConfig(config) {
       /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(agent.name),
       `invalid agent name: ${agent.name}`,
     );
-    requireValue(!agentNames.has(agent.name), `duplicate agent name: ${agent.name}`);
+    requireValue(
+      !agentNames.has(agent.name),
+      `duplicate agent name: ${agent.name}`,
+    );
     requireValue(
       Array.isArray(agent.tools) && agent.tools.length > 0,
       `${agent.name}.tools must be a non-empty array`,
@@ -114,7 +126,10 @@ function validateConfig(config) {
   // and declares which lifecycle roles must load it. Sync projects those trees to .claude/skills
   // and .agents/skills only.
   if (config.skills !== undefined) {
-    requireValue(Array.isArray(config.skills), "skills must be an array when present");
+    requireValue(
+      Array.isArray(config.skills),
+      "skills must be an array when present",
+    );
     const skillNames = new Set();
     const agentRoles = new Set(config.agents.map((agent) => agent.role));
     for (const skill of config.skills) {
@@ -122,13 +137,17 @@ function validateConfig(config) {
         /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(skill.name),
         `invalid skill name: ${skill.name}`,
       );
-      requireValue(!skillNames.has(skill.name), `duplicate skill name: ${skill.name}`);
+      requireValue(
+        !skillNames.has(skill.name),
+        `duplicate skill name: ${skill.name}`,
+      );
       requireValue(
         typeof skill.description === "string" && skill.description.length > 0,
         `${skill.name}.description must be a non-empty string`,
       );
       requireValue(
-        typeof skill.source === "string" && skill.source.startsWith("harness/skills/"),
+        typeof skill.source === "string" &&
+          skill.source.startsWith("harness/skills/"),
         `${skill.name}.source must be a path under harness/skills/`,
       );
       requireValue(
@@ -140,7 +159,10 @@ function validateConfig(config) {
         `${skill.name}.roles must be a non-empty array`,
       );
       for (const role of skill.roles) {
-        requireValue(KNOWN_ROLES.includes(role), `${skill.name}.roles has unknown role: ${role}`);
+        requireValue(
+          KNOWN_ROLES.includes(role),
+          `${skill.name}.roles has unknown role: ${role}`,
+        );
         requireValue(
           agentRoles.has(role),
           `${skill.name}.roles includes ${role} but no agent has that role`,
@@ -193,7 +215,8 @@ export function claudeSettings(config) {
 
   return {
     $schema: "https://json.schemastore.org/claude-code-settings.json",
-    _generated: "From harness.config.json by scripts/engine/sync.mjs. Do not edit.",
+    _generated:
+      "From harness.config.json by scripts/engine/sync.mjs. Do not edit.",
     hooks,
     ...config.context,
     permissions: config.permissions,
@@ -240,7 +263,8 @@ export function copilotHooks(config) {
   return { version: 1, hooks };
 }
 
-export const copilotHooksText = (config) => `${JSON.stringify(copilotHooks(config), null, 2)}\n`;
+export const copilotHooksText = (config) =>
+  `${JSON.stringify(copilotHooks(config), null, 2)}\n`;
 
 export function rulesBlock(config) {
   const width = Math.max(...config.rules.map((rule) => rule.never.length));
@@ -257,7 +281,9 @@ export function rulesBlock(config) {
     "",
     "| Rule | Why it exists | Enforcement |",
     "|---|---|---|",
-    ...config.rules.map((rule) => `| \`${rule.id}\` | ${rule.why} | ${rule.enforcement} |`),
+    ...config.rules.map(
+      (rule) => `| \`${rule.id}\` | ${rule.why} | ${rule.enforcement} |`,
+    ),
     "",
     RULES_END,
   ].join("\n");
@@ -275,11 +301,16 @@ function ruleBullets(config) {
 }
 
 function agentBullets(config) {
-  return config.agents.map((agent) => `- \`${agent.name}\` (${agent.role}) — ${agent.when}`).join("\n");
+  return config.agents
+    .map((agent) => `- \`${agent.name}\` (${agent.role}) — ${agent.when}`)
+    .join("\n");
 }
 
 function readOnlyRationale(config) {
-  return config.agents.find((agent) => agent.readOnlyRationale)?.readOnlyRationale ?? "";
+  return (
+    config.agents.find((agent) => agent.readOnlyRationale)?.readOnlyRationale ??
+    ""
+  );
 }
 
 function whereThingsLive(config) {
@@ -427,14 +458,20 @@ export function agentInstructions(repoRoot, config, agent) {
     `${agent.name}.instructions must resolve inside harness/agents`,
   );
   const foundationsPath = path.resolve(repoRoot, config.qaFoundations);
-  const foundationsRelative = path.relative(path.resolve(repoRoot, "harness"), foundationsPath);
+  const foundationsRelative = path.relative(
+    path.resolve(repoRoot, "harness"),
+    foundationsPath,
+  );
   requireValue(
     foundationsRelative &&
       !foundationsRelative.startsWith("..") &&
       !path.isAbsolute(foundationsRelative),
     "qaFoundations must resolve inside harness/",
   );
-  const foundations = fs.readFileSync(foundationsPath, "utf8").replace(/\r\n/g, "\n").trim();
+  const foundations = fs
+    .readFileSync(foundationsPath, "utf8")
+    .replace(/\r\n/g, "\n")
+    .trim();
   const body = fs
     .readFileSync(resolved, "utf8")
     .replace(/\r\n/g, "\n")
@@ -450,7 +487,9 @@ export function claudeAgent(agent, instructions) {
     `name: ${agent.name}`,
     `description: ${JSON.stringify(agent.description)}`,
     ...(agent.model ? [`model: ${agent.model}`] : []),
-    ...(agent.permissionMode ? [`permissionMode: ${agent.permissionMode}`] : []),
+    ...(agent.permissionMode
+      ? [`permissionMode: ${agent.permissionMode}`]
+      : []),
     "tools:",
     ...agent.tools.map((tool) => `  - ${tool}`),
     "---",
@@ -477,7 +516,11 @@ export function cursorAgent(agent, instructions) {
 }
 
 export function copilotTools(agent) {
-  return [...new Set(agent.tools.map((tool) => COPILOT_TOOL_ALIASES[tool]).filter(Boolean))];
+  return [
+    ...new Set(
+      agent.tools.map((tool) => COPILOT_TOOL_ALIASES[tool]).filter(Boolean),
+    ),
+  ];
 }
 
 export function copilotAgent(agent, instructions) {
@@ -525,11 +568,14 @@ export function cursorHooks(config) {
   };
 }
 
-export const cursorHooksText = (config) => `${JSON.stringify(cursorHooks(config), null, 2)}\n`;
+export const cursorHooksText = (config) =>
+  `${JSON.stringify(cursorHooks(config), null, 2)}\n`;
 
 /** Whether the portable .agents/skills tree should be projected. */
 export function portableSkillsEnabled(config) {
-  return ["copilot", "cursor", "codex"].some((adapter) => adapterEnabled(config, adapter));
+  return ["copilot", "cursor", "codex"].some((adapter) =>
+    adapterEnabled(config, adapter),
+  );
 }
 
 export function skillMarkerText() {
@@ -564,9 +610,13 @@ export function injectRules(existingText, config) {
   const start = existingText.indexOf(RULES_START);
   const end = existingText.indexOf(RULES_END);
   if (start === -1 || end === -1 || end < start) return null;
-  if (existingText.indexOf(RULES_START, start + RULES_START.length) !== -1) return null;
-  if (existingText.indexOf(RULES_END, end + RULES_END.length) !== -1) return null;
+  if (existingText.indexOf(RULES_START, start + RULES_START.length) !== -1)
+    return null;
+  if (existingText.indexOf(RULES_END, end + RULES_END.length) !== -1)
+    return null;
   return (
-    existingText.slice(0, start) + rulesBlock(config) + existingText.slice(end + RULES_END.length)
+    existingText.slice(0, start) +
+    rulesBlock(config) +
+    existingText.slice(end + RULES_END.length)
   );
 }

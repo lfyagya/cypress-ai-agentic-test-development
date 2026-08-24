@@ -46,5 +46,9 @@ scripts/engine/check-drift.mjs
 scripts/engine/sync.mjs
 scripts/engine/templates.mjs
 scripts/engine/test-config-paths-honest.mjs
+scripts/evidence.mjs
 scripts/lib/cli.mjs
+scripts/record-evidence.mjs
+scripts/test-evidence.mjs
+scripts/test-record-evidence.mjs
 # END lf-qa-harness-os

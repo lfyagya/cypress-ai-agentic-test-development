@@ -23,7 +23,11 @@ import {
   skillMarkerText,
 } from "./templates.mjs";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const root = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 const config = readConfig(root);
 const failures = [];
 
@@ -36,7 +40,10 @@ function check(relativePath, expected) {
 
 function checkOwnedAbsent(relativePath, marker) {
   const target = path.join(root, relativePath);
-  if (fs.existsSync(target) && fs.readFileSync(target, "utf8").includes(marker)) {
+  if (
+    fs.existsSync(target) &&
+    fs.readFileSync(target, "utf8").includes(marker)
+  ) {
     failures.push(relativePath);
   }
 }
@@ -48,7 +55,10 @@ function checkGeneratedDirectory(relativeDirectory, expected) {
     if (!entry.isFile()) continue;
     const relativePath = path.join(relativeDirectory, entry.name);
     const content = fs.readFileSync(path.join(directory, entry.name), "utf8");
-    if (content.includes(GENERATED_AGENT_MARKER) && !expected.has(relativePath)) {
+    if (
+      content.includes(GENERATED_AGENT_MARKER) &&
+      !expected.has(relativePath)
+    ) {
       failures.push(relativePath);
     }
   }
@@ -64,7 +74,10 @@ function checkSkillProjection(relativeRoot, enabled) {
     return;
   }
 
-  check(path.join(relativeRoot, ".harness-generated").replaceAll("\\", "/"), skillMarkerText());
+  check(
+    path.join(relativeRoot, ".harness-generated").replaceAll("\\", "/"),
+    skillMarkerText(),
+  );
   if (!fs.existsSync(markerPath)) {
     failures.push(relativeRoot);
     return;
@@ -78,7 +91,9 @@ function checkSkillProjection(relativeRoot, enabled) {
   for (const skill of skills) {
     const sourceRoot = path.join(root, skill.source);
     for (const file of listSkillFiles(root, skill.source)) {
-      const relativePath = path.join(relativeRoot, skill.name, file).replaceAll("\\", "/");
+      const relativePath = path
+        .join(relativeRoot, skill.name, file)
+        .replaceAll("\\", "/");
       const expected = fs.readFileSync(path.join(sourceRoot, file), "utf8");
       check(relativePath, expected);
     }
@@ -132,7 +147,10 @@ if (adapterEnabled(config, "copilot")) {
   check(".github/copilot-instructions.md", copilotInstructions(config));
   check(".github/hooks/harness.json", copilotHooksText(config));
 } else {
-  checkOwnedAbsent(".github/copilot-instructions.md", "GENERATED FROM harness.config.json");
+  checkOwnedAbsent(
+    ".github/copilot-instructions.md",
+    "GENERATED FROM harness.config.json",
+  );
   checkOwnedAbsent(".github/hooks/harness.json", GENERATED_HOOK_MARKER);
 }
 
@@ -140,7 +158,10 @@ if (adapterEnabled(config, "cursor")) {
   check(".cursor/rules/harness.mdc", cursorRulesText(config));
   check(".cursor/hooks.json", cursorHooksText(config));
 } else {
-  checkOwnedAbsent(".cursor/rules/harness.mdc", "GENERATED FROM harness.config.json");
+  checkOwnedAbsent(
+    ".cursor/rules/harness.mdc",
+    "GENERATED FROM harness.config.json",
+  );
   checkOwnedAbsent(".cursor/hooks.json", '"_generated"');
 }
 
