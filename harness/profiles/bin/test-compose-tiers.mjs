@@ -11,7 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONCERNS } from "../../concerns.mjs";
-import { resolveRules } from "./compose-harness-config.mjs";
+import { compose, resolveRules } from "./compose-harness-config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(HERE, "..", "..", "..");
@@ -127,6 +127,59 @@ for (const [ruleOverrides, expected, message] of rejects) {
   );
 }
 
+// 5. wiring and strategy: validated and carried, or rejected. These were declared in profiles and
+//    silently dropped at composition until P2 -- a team could name a package manager and nothing
+//    anywhere would carry it.
+const withBlocks = compose({
+  ...profile({}),
+  wiring: {
+    packageManager: "yarn",
+    workspacePackage: true,
+    verifyScript: "yarn verify",
+  },
+  strategy: {
+    auth: "cached-session",
+    testData: "seeded",
+    credentialSource: "vault",
+  },
+});
+assert.equal(withBlocks.wiring.packageManager, "yarn");
+assert.equal(withBlocks.strategy.credentialSource, "vault");
+assert.ok(
+  !("wiring" in compose(profile({}))),
+  "a profile declaring no wiring must not gain the key -- existing configs stay byte-identical",
+);
+for (const [block, expected, why] of [
+  [
+    { wiring: { packageManager: "bun" } },
+    /expected one of npm, yarn, pnpm/,
+    "an unknown enum value must be refused",
+  ],
+  [
+    { wiring: { packageManger: "yarn" } },
+    /is not a known key/,
+    "a misspelled key must be refused rather than ignored",
+  ],
+  [
+    { wiring: { workspacePackage: "true" } },
+    /must be a boolean/,
+    "a stringly-typed boolean must be refused",
+  ],
+  [
+    { strategy: { auth: "sso" } },
+    /expected one of cached-session/,
+    "an unknown auth strategy must be refused",
+  ],
+  [
+    { strategy: { testData: "random" } },
+    /expected one of fresh, seeded/,
+    "an unknown test-data strategy must be refused",
+  ],
+  [{ strategy: [] }, /must be an object/, "an array must be refused"],
+]) {
+  assert.throws(() => compose({ ...profile({}), ...block }), expected, why);
+}
+
 // 5. An adapter with no native pattern and a profile that declares none is an error, not a silent
 //    "no Tier 2 concerns apply".
 assert.throws(
@@ -137,5 +190,6 @@ assert.throws(
 
 console.log(
   `[compose:tiers] ${config.framework}: native pattern reproduces ${base.rules.length} rule(s); ` +
-    `bdd-pom drops ARCH-BOUNDARY only; ${rejects.length} rejection(s) verified`,
+    `bdd-pom drops ARCH-BOUNDARY only; wiring and strategy validated and carried; ` +
+    `${rejects.length + 6} rejection(s) verified`,
 );

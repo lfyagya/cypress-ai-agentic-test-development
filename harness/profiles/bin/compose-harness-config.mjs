@@ -34,6 +34,64 @@ function resolveAdapters(profile, base) {
   return resolved;
 }
 
+// D3 wiring and D4 strategy. Declared per project, and until now silently dropped at composition:
+// a profile could name a package manager or an auth strategy and nothing carried it anywhere, which
+// is the same declared-but-unconsumed defect the rules layer kept producing.
+//
+// Enumerated so a typo fails rather than being ignored. `verifyScript` is free-form because it names
+// the consumer's own entry point, which the engine cannot know.
+const WIRING_SCHEMA = {
+  packageManager: ["npm", "yarn", "pnpm"],
+  workspacePackage: "boolean",
+  verifyScript: "string",
+};
+const STRATEGY_SCHEMA = {
+  auth: [
+    "cached-session",
+    "storage-state",
+    "per-test-login",
+    "token-injection",
+  ],
+  testData: ["fresh", "seeded", "cached-fixture"],
+  credentialSource: ["vault", "env", "ci-secret"],
+};
+
+function validateBlock(name, block, schema) {
+  if (block === undefined) return undefined;
+  if (typeof block !== "object" || block === null || Array.isArray(block)) {
+    throw new Error(`profile.${name} must be an object`);
+  }
+  for (const [key, value] of Object.entries(block)) {
+    if (key.startsWith("$")) continue; // inline documentation, by convention
+    const expected = schema[key];
+    if (!expected) {
+      throw new Error(
+        `profile.${name}.${key} is not a known key. Known: ${Object.keys(schema).join(", ")}. ` +
+          `An unrecognised key would be carried nowhere and read as configured.`,
+      );
+    }
+    if (Array.isArray(expected)) {
+      if (!expected.includes(value)) {
+        throw new Error(
+          `profile.${name}.${key} is "${value}"; expected one of ${expected.join(", ")}`,
+        );
+      }
+      continue;
+    }
+    if (expected === "boolean" && typeof value !== "boolean") {
+      throw new Error(
+        `profile.${name}.${key} must be a boolean, got ${typeof value}`,
+      );
+    }
+    if (expected === "string" && typeof value !== "string") {
+      throw new Error(
+        `profile.${name}.${key} must be a string, got ${typeof value}`,
+      );
+    }
+  }
+  return block;
+}
+
 /**
  * Resolves the rule set for one project: Tier 2 concerns selected by the declared architecture,
  * Tier 1 severities adjusted by recorded overrides, Tier 0 untouchable.
@@ -155,6 +213,18 @@ export function compose(profile, adaptersDir = ADAPTERS) {
       ? { env: { ...(base.defaults.env ?? {}), ...(over.env ?? {}) } }
       : {}),
     loops: { ...base.defaults.loops, ...(over.loops ?? {}) },
+    ...(profile.wiring
+      ? { wiring: validateBlock("wiring", profile.wiring, WIRING_SCHEMA) }
+      : {}),
+    ...(profile.strategy
+      ? {
+          strategy: validateBlock(
+            "strategy",
+            profile.strategy,
+            STRATEGY_SCHEMA,
+          ),
+        }
+      : {}),
     qaFoundations: base.qaFoundations,
     rules: resolveRules(base, profile),
     agents: base.agents,

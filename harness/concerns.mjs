@@ -77,9 +77,15 @@ export const CONCERNS = {
     tier: 2,
     summary: "authentication is cached once, not replayed per test",
     why: "Authentication should be isolated and cached, not repeated in every test.",
-    // Applies wherever the project's auth strategy is a cached session. A project that
-    // deliberately re-authenticates per test (a multi-tenant matrix, say) declares that in D4 and
-    // this concern does not apply to it.
+    // Applies to every architecture: caching authentication is orthogonal to how the UI layer is
+    // organised.
+    //
+    // Deliberately NOT conditional on the project's declared `strategy.auth`, though an earlier
+    // version of this comment claimed it was. Tier 2 selection keys on architecture only, and
+    // wiring it to D4 as well would make `strategy` a second route to switching a rule off — one
+    // that bypasses the recorded-reason requirement that governs every other relaxation. A project
+    // that genuinely must re-authenticate per test is a case for a new pattern or a spec change,
+    // decided once for everyone, not a per-project escape hatch.
     patterns: [
       "helper-first",
       "command-first",
