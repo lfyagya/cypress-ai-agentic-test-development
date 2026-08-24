@@ -37,3 +37,8 @@ scripts/engine/templates.mjs
 scripts/engine/test-agent-adapters.mjs
 scripts/engine/test-block-rules-enforced.mjs
 scripts/engine/test-config-paths-honest.mjs
+
+# BEGIN lf-qa-harness-os (generated — do not edit)
+scripts/backfill-ci-evidence.mjs
+scripts/lib/cli.mjs
+# END lf-qa-harness-os
