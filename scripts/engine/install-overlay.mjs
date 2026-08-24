@@ -78,12 +78,33 @@ function walk(absolute, base) {
     );
 }
 
-function isGenerated(text) {
-  return (
-    text.includes("GENERATED") ||
-    text.includes("_generated") ||
-    text.includes("$comment")
-  );
+/**
+ * The install record: what this overlay put in the target, so a later run can tell its own files
+ * from the consumer's.
+ *
+ * Without it there is no upgrade path. A GENERATED-marker heuristic classifies an engine file the
+ * overlay installed as consumer-owned, so the second install of a *changed* engine file is reported
+ * as a conflict and refused — the harness installs once and can never be updated, which is the
+ * vendored-copies-drift failure this whole extraction existed to prevent, reintroduced one layer up.
+ *
+ * A path in the record is the overlay's and is overwritten. A path absent from the record but
+ * present on disk is the consumer's and is never touched.
+ */
+const RECORD_PATH = path.join(".claude", "harness-overlay.json");
+
+function toPosixPath(value) {
+  return value.split(path.sep).join("/");
+}
+
+function readRecord(root) {
+  try {
+    const record = JSON.parse(
+      fs.readFileSync(path.join(root, RECORD_PATH), "utf8"),
+    );
+    return new Set(record.installed ?? []);
+  } catch {
+    return new Set();
+  }
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -123,6 +144,7 @@ const files = manifest(framework).flatMap((entry) =>
 );
 if (files.length === 0) fail("manifest resolved to no files");
 
+const owned = readRecord(targetRoot);
 const writes = [];
 const conflicts = [];
 for (const relative of files) {
@@ -135,7 +157,9 @@ for (const relative of files) {
   }
   const current = fs.readFileSync(to, "utf8");
   if (current === next) continue;
-  if (isGenerated(current)) {
+  // Ours to replace if a previous install recorded it. Otherwise the consumer already had a file
+  // at this path before the harness arrived, and that one is theirs.
+  if (owned.has(toPosixPath(relative))) {
     writes.push([relative, "update", next]);
   } else {
     conflicts.push(relative);
@@ -148,6 +172,11 @@ const profileTarget = path.join(
   "projects",
   `${profile.key}.json`,
 );
+const profileText = `${JSON.stringify(profile, null, 2)}\n`;
+const profileAbsolute = path.join(targetRoot, profileTarget);
+const profileExists = fs.existsSync(profileAbsolute);
+const profileChanged =
+  !profileExists || fs.readFileSync(profileAbsolute, "utf8") !== profileText;
 
 console.log(`[install] source   ${SOURCE}`);
 console.log(`[install] target   ${targetRoot}`);
@@ -158,19 +187,24 @@ console.log(
 console.log("");
 for (const [relative, kind] of writes)
   console.log(`  ${kind.padEnd(6)} ${relative}`);
-console.log(`  new    ${profileTarget}`);
+if (profileChanged) {
+  console.log(`  ${profileExists ? "update" : "new   "} ${profileTarget}`);
+}
 console.log(`  inject CLAUDE.md (between ${RULES_BEGIN} markers)`);
 
 if (conflicts.length > 0) {
   console.error("");
   console.error(
-    `[install] refusing: ${conflicts.length} file(s) exist in the target and carry no GENERATED ` +
-      `marker, so they are the consumer's. The overlay never overwrites those:`,
+    `[install] refusing: ${conflicts.length} file(s) exist in the target, differ from source, and ` +
+      `are not listed in ${RECORD_PATH}. The overlay only replaces what it recorded installing, so ` +
+      `these are treated as the consumer's and left alone:`,
   );
   for (const relative of conflicts) console.error(`    ${relative}`);
   console.error(
-    "\nResolve by removing or renaming them in the target, or by narrowing the manifest if the " +
-      "overlay is claiming something it should not own.",
+    `\nIf they really are yours, remove or rename them in the target. If a previous install put ` +
+      `them there before ${RECORD_PATH} existed, delete them and re-run — the install is ` +
+      `idempotent, so it will restore them and record them this time. If the overlay is claiming a ` +
+      `path it should not own, the manifest is wrong.`,
   );
   process.exit(1);
 }
@@ -178,7 +212,7 @@ if (conflicts.length > 0) {
 console.log("");
 if (!apply) {
   console.log(
-    `[install] ${writes.length + 1} file(s) to write, plus one injected block. ` +
+    `[install] ${writes.length + (profileChanged ? 1 : 0)} file(s) to write. ` +
       `Dry run — pass --apply to write.`,
   );
   process.exit(0);
@@ -189,11 +223,34 @@ for (const [relative, , content] of writes) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.writeFileSync(to, content, "utf8");
 }
-const profileAbsolute = path.join(targetRoot, profileTarget);
-fs.mkdirSync(path.dirname(profileAbsolute), { recursive: true });
+if (profileChanged) {
+  fs.mkdirSync(path.dirname(profileAbsolute), { recursive: true });
+  fs.writeFileSync(profileAbsolute, profileText, "utf8");
+}
+
+// Record every path the overlay owns, so the next run upgrades them instead of mistaking them for
+// the consumer's. This is what makes the install re-runnable at all.
+const installed = [
+  ...files.map(toPosixPath),
+  toPosixPath(profileTarget),
+  toPosixPath(RECORD_PATH),
+].sort();
+const recordAbsolute = path.join(targetRoot, RECORD_PATH);
+fs.mkdirSync(path.dirname(recordAbsolute), { recursive: true });
 fs.writeFileSync(
-  profileAbsolute,
-  `${JSON.stringify(profile, null, 2)}\n`,
+  recordAbsolute,
+  `${JSON.stringify(
+    {
+      $comment:
+        "GENERATED by scripts/engine/install-overlay.mjs. Lists the files this overlay owns, so a " +
+        "later install upgrades them rather than treating them as yours. Do not edit by hand.",
+      adapter: framework,
+      profile: profile.key,
+      installed,
+    },
+    null,
+    2,
+  )}\n`,
   "utf8",
 );
 
@@ -228,7 +285,10 @@ if (!fs.existsSync(claudePath)) {
   }
 }
 
-console.log(`[install] wrote ${writes.length + 1} file(s).`);
+console.log(
+  `[install] wrote ${writes.length + (profileChanged ? 1 : 0)} file(s); ` +
+    `${installed.length} path(s) recorded as overlay-owned.`,
+);
 console.log(`[install] CLAUDE.md: ${claudeAction}`);
 console.log("");
 console.log("Next, in the target repo:");
