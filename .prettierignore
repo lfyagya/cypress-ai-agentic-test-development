@@ -42,6 +42,9 @@ scripts/engine/test-config-paths-honest.mjs
 .claude/hooks/rule-engine.mjs
 harness/profiles/bin/compose-harness-config.mjs
 scripts/backfill-ci-evidence.mjs
+scripts/engine/check-drift.mjs
+scripts/engine/sync.mjs
+scripts/engine/templates.mjs
 scripts/engine/test-config-paths-honest.mjs
 scripts/lib/cli.mjs
 # END lf-qa-harness-os
