@@ -66,6 +66,15 @@ function manifest(framework) {
     "harness/qa-automation-foundations.md",
     `harness/profiles/adapters/${framework}.json`,
     "harness/profiles/bin/",
+    // Adapter skill canon, when the adapter has one. Cypress declares three skills whose sources
+    // live here and which sync projects into .claude/skills; Playwright declares none.
+    //
+    // This line is the finding from the first second-adapter onboarding. The manifest had only ever
+    // been exercised from Playwright, which declares no skills, so installing from Cypress produced
+    // a config that referenced skill sources the overlay had not carried and `sync` failed
+    // validating it. An adapter's optional payload is still its payload; walk() skips this when the
+    // directory is absent.
+    "harness/skills/",
   ];
 }
 

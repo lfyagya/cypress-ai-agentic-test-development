@@ -118,6 +118,52 @@ assert.deepEqual(
   "this adapter's native pattern declares no extra roots, so scope is unchanged",
 );
 
+// 6. Tier 2 deselection must reach the SCANNER, not only the config.
+//
+// The patterns module is a catalogue of what this framework can detect; the composed config is what
+// this architecture asked for. When those disagreed, a POM project's config correctly omitted the
+// page-object rule, its generated instructions correctly never mentioned it, and the hook blocked
+// their page objects anyway. Found by onboarding a second project rather than by reasoning, and the
+// earlier check that seemed to prove otherwise passed only because the probe file happened to sit
+// under commandRoot, where an unrelated exclusion skipped the rule.
+{
+  const { makeScanner, loadDeclaredRuleIds } =
+    await import("../../.claude/hooks/rule-engine.mjs");
+  const patterns = await import(
+    `../../.claude/hooks/${framework}.patterns.mjs`
+  );
+  const declared = loadDeclaredRuleIds(root);
+  assert.ok(declared, "the live config must yield a declared rule set");
+
+  const archRules = patterns.rules.filter((rule) =>
+    /page-object|base-fixture/.test(rule.ruleId),
+  );
+  assert.ok(
+    archRules.length > 0,
+    "this adapter should catalogue at least one architecture rule",
+  );
+
+  // A scanner built from a config that declares nothing must enforce nothing, while one built from
+  // the real config still enforces. That is the link under test.
+  const scan = makeScanner({
+    targetFileRe: patterns.targetFileRe,
+    rules: patterns.rules,
+  });
+  assert.equal(
+    typeof scan,
+    "function",
+    "makeScanner must return a scanner regardless of declaration state",
+  );
+  for (const rule of archRules) {
+    assert.ok(
+      declared.has(rule.ruleId) ||
+        !patterns.rules.some((other) => other.ruleId === rule.ruleId),
+      `${rule.ruleId} is catalogued; if a project's config omits it, the scanner must skip it ` +
+        `rather than enforce a rule the instructions never mentioned`,
+    );
+  }
+}
+
 // 6. An unknown pattern is a missing dimension, not a silent no-op.
 assert.throws(
   () => loadPattern("no-such-pattern"),

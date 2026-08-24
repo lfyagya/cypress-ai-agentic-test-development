@@ -187,6 +187,29 @@ export function loadRuleMessages(repoRoot) {
   }
 }
 
+/**
+ * The rule ids this project actually declares, or null when the config cannot be read.
+ *
+ * The composed config is the source of truth for *which* rules apply: Tier 2 concerns are selected
+ * by architecture there and Tier 1 severities are set there. A patterns module is only the catalogue
+ * of what a framework knows how to detect. Without this link the two disagree in the worst
+ * direction — a POM project's config correctly omits the page-object rule, its generated
+ * instructions correctly never mention it, and the hook blocks their page objects anyway.
+ *
+ * Null rather than an empty set on failure, so an unreadable config falls back to the full
+ * catalogue. Enforcing too much is recoverable and loud; enforcing nothing looks like success.
+ */
+export function loadDeclaredRuleIds(repoRoot) {
+  try {
+    const { rules } = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, "harness.config.json"), "utf8"),
+    );
+    return Array.isArray(rules) ? new Set(rules.map((rule) => rule.id)) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function isAllowedLiteral(value, allowSet, ignoreCase = false) {
   const literal = String(value || "").trim();
   if (!literal) return false;
@@ -289,7 +312,12 @@ export function makeScanner({ targetFileRe, rules }) {
 
     if (!targetFileRe.test(normalized)) return violations;
 
+    // Only enforce what this project declares. The catalogue below is what the framework can
+    // detect; the config is what this architecture actually asked for.
+    const declared = loadDeclaredRuleIds(repoRoot);
+
     for (const rule of rules) {
+      if (declared && !declared.has(rule.ruleId)) continue;
       if (rule.appliesTo && !rule.appliesTo(normalized)) continue;
       const message = messages[rule.ruleId] || rule.fallback;
 
