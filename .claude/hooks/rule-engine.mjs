@@ -27,14 +27,24 @@ export function toPosix(p) {
 }
 
 /**
- * Builds `extractToolChange` for a given set of write-tool names.
+ * Every tool name that represents a write we must inspect.
  *
- * The set is a parameter because the two adapters currently disagree: Cypress accepts
- * Cursor's `StrReplace`, Playwright does not, so a Cursor user editing a Playwright spec
- * gets no enforcement at all. Widening it is a behaviour change and belongs to P1b, so
- * this keeps each adapter on today's set rather than silently fixing one of them mid-phase.
+ * Claude and Copilot emit Write|Edit; Cursor emits Write|StrReplace. A tool missing from
+ * this set is not "unsupported" — it is *unenforced*, and silently: the change is never
+ * extracted, so every block rule passes on a file that violates all of them. That is the
+ * same defect class as a rule declared `block` with no pattern behind it.
+ *
+ * The engine owns this list so a new tool is added once, for every adapter. Before P1b it
+ * lived in each adapter, and the two had drifted: Playwright omitted `StrReplace`, so
+ * Cursor users editing Playwright specs had no write-time enforcement at all.
  */
-export function makeExtractToolChange(writeToolNames) {
+export const DEFAULT_WRITE_TOOLS = ["Write", "Edit", "StrReplace"];
+
+/**
+ * Builds `extractToolChange` for a set of write-tool names, defaulting to every tool the
+ * engine knows about. An adapter should not narrow this without a recorded reason.
+ */
+export function makeExtractToolChange(writeToolNames = DEFAULT_WRITE_TOOLS) {
   const writeTools = new Set(writeToolNames);
   return function extractToolChange(
     toolData,

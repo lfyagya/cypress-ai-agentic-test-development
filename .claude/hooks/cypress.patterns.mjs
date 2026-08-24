@@ -44,9 +44,6 @@ export const EXTENSION_PATTERNS = {
   TARGET_FILE_RE,
 };
 
-// Claude/Copilot: Write|Edit. Cursor: Write|StrReplace (and Edit aliases).
-export const WRITE_TOOLS = ["Write", "Edit", "StrReplace"];
-
 export const targetFileRe = TARGET_FILE_RE;
 
 // Requirement id shape, e.g. AE-PRODUCTS-001 or REQ-1: uppercase segments joined by hyphens.

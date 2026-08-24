@@ -20,12 +20,11 @@ import {
 } from "./rule-engine.mjs";
 import {
   EXTENSION_PATTERNS,
-  WRITE_TOOLS,
   rules,
   targetFileRe,
 } from "./cypress.patterns.mjs";
 
-export const extractToolChange = makeExtractToolChange(WRITE_TOOLS);
+export const extractToolChange = makeExtractToolChange();
 export const scanContent = makeScanner({ targetFileRe, rules });
 
 export {
