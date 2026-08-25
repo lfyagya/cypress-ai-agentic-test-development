@@ -41,6 +41,8 @@ scripts/engine/test-config-paths-honest.mjs
 # BEGIN lf-qa-harness-os (generated — do not edit)
 .claude/hooks/harness-config-gate.mjs
 .claude/hooks/rule-engine.mjs
+docs/harness-conformance-spec.md
+docs/harness-onboarding-runbook.md
 harness/concerns.mjs
 harness/patterns.mjs
 harness/profiles/bin/compose-harness-config.mjs
