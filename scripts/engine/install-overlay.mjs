@@ -54,9 +54,14 @@ function manifest(framework) {
     "harness/engine-version.json",
     ".claude/hooks/rule-engine.mjs",
     ".claude/hooks/harness-config-gate.mjs",
-    ".claude/hooks/prompt-duplication-guard.mjs",
     ".claude/hooks/session-end-reminder.mjs",
     // L2 adapter: rule patterns, wiring, and the agent sources sync projects.
+    //
+    // prompt-duplication-guard belongs here, not above. It was listed under the engine heading
+    // while never being vendored, and it is genuinely per-adapter: its context words are "helper"
+    // for Playwright and "command" for Cypress. A comment claiming a file is shared when it is not
+    // is how two copies drift while everyone believes they are one.
+    ".claude/hooks/prompt-duplication-guard.mjs",
     ".claude/hooks/shared-rules.mjs",
     `.claude/hooks/${framework}.patterns.mjs`,
     `.claude/hooks/${framework}-hook-allowlist.json`,
