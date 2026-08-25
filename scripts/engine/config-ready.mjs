@@ -8,9 +8,16 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const CONFIGURE_RE =
-  /harness:init|harness:check|harness:ready|harness:lock|harness:compose|harness:sync|configure\.prompt|configure the (cypress )?harness|(fill( in)?|edit|fix) (the )?(harness (config|profile)|harness\.config|project profile)/i;
+  /harness:init|harness:check|harness:ready|harness:lock|harness:compose|harness:sync|configure\.prompt|configure the (\w+ )?harness|(fill( in)?|edit|fix) (the )?(harness (config|profile)|harness\.config|project profile)/i;
 
-const REQUIRED_PROFILE = ["key", "displayName", "owner", "projectName", "repo", "adapter"];
+const REQUIRED_PROFILE = [
+  "key",
+  "displayName",
+  "owner",
+  "projectName",
+  "repo",
+  "adapter",
+];
 
 function isPlaceholder(value) {
   if (value == null || String(value).trim() === "") return true;
@@ -31,7 +38,10 @@ export function findProfile(root, projectName) {
     const path = join(dir, file);
     try {
       const profile = JSON.parse(readFileSync(path, "utf8"));
-      if (profile.projectName === projectName || (!projectName && profile.key)) {
+      if (
+        profile.projectName === projectName ||
+        (!projectName && profile.key)
+      ) {
         return { path, profile };
       }
     } catch {
@@ -45,7 +55,9 @@ function profileIssues(profile) {
   const issues = [];
   for (const field of REQUIRED_PROFILE) {
     if (isPlaceholder(profile[field])) {
-      issues.push(`profile.${field} is missing or still a template placeholder`);
+      issues.push(
+        `profile.${field} is missing or still a template placeholder`,
+      );
     }
   }
   if (!adaptersOn(profile.adapters)) {
@@ -62,7 +74,9 @@ export function evaluateConfigReady(root) {
       complete: false,
       locked: false,
       status: "missing",
-      issues: ["harness.config.json is missing — compose the project profile first"],
+      issues: [
+        "harness.config.json is missing — compose the project profile first",
+      ],
     };
   }
 
@@ -85,7 +99,9 @@ export function evaluateConfigReady(root) {
       complete: false,
       locked: false,
       status: "broken",
-      issues: ["harness.config.json is missing project.name, version, or hooks — re-compose"],
+      issues: [
+        "harness.config.json is missing project.name, version, or hooks — re-compose",
+      ],
     };
   }
 
@@ -114,7 +130,14 @@ export function evaluateConfigReady(root) {
 
   const issues = profileIssues(found.profile);
   if (issues.length) {
-    return { ok: false, complete: false, locked: false, status: "unconfigured", issues, ...found };
+    return {
+      ok: false,
+      complete: false,
+      locked: false,
+      status: "unconfigured",
+      issues,
+      ...found,
+    };
   }
 
   if (found.profile.locked !== true) {
@@ -128,12 +151,23 @@ export function evaluateConfigReady(root) {
     };
   }
 
-  return { ok: true, complete: true, locked: true, status: "ready", issues: [], ...found };
+  return {
+    ok: true,
+    complete: true,
+    locked: true,
+    status: "ready",
+    issues: [],
+    ...found,
+  };
 }
 
 export function lockProjectProfile(root) {
   const result = evaluateConfigReady(root);
-  if (result.status === "missing" || result.status === "broken" || result.status === "unconfigured") {
+  if (
+    result.status === "missing" ||
+    result.status === "broken" ||
+    result.status === "unconfigured"
+  ) {
     return { ...result, lockedNow: false };
   }
   const profile = { ...result.profile, locked: true };
@@ -156,7 +190,8 @@ export function formatReadyMessage(result, { allowConfigure = false } = {}) {
 }
 
 const isMain =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");

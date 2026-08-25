@@ -22,7 +22,11 @@ function hook(dir, prompt) {
     env: { ...process.env, CLAUDE_PROJECT_DIR: dir, CURSOR_PROJECT_DIR: dir },
     timeout: 10000,
   });
-  return { code: r.status, stdout: (r.stdout || "").trim(), stderr: (r.stderr || "").trim() };
+  return {
+    code: r.status,
+    stdout: (r.stdout || "").trim(),
+    stderr: (r.stderr || "").trim(),
+  };
 }
 
 function tmp() {
@@ -38,53 +42,105 @@ function writeProfile(dir, profile, filename = `${profile.key}.json`) {
   );
 }
 
+const live = JSON.parse(readFileSync(LIVE, "utf8"));
+// Fixture profiles are synthetic, but the adapter has to be one this clone really has, so it
+// is read from the live config rather than hardcoded to one framework.
+const ADAPTER = live.framework;
+
 const completeProfile = {
   key: "payments",
   displayName: "Payments",
   owner: "QA Guild",
-  adapter: "cypress",
+  adapter: ADAPTER,
   projectName: "payments-web",
   repo: "https://github.com/acme/payments",
   adapters: { claude: { enabled: true } },
 };
 
-const live = JSON.parse(readFileSync(LIVE, "utf8"));
-
 const readyDir = tmp();
-writeFileSync(join(readyDir, "harness.config.json"), `${JSON.stringify(live, null, 2)}\n`);
-writeProfile(readyDir, { ...completeProfile, projectName: live.project.name, locked: true });
+writeFileSync(
+  join(readyDir, "harness.config.json"),
+  `${JSON.stringify(live, null, 2)}\n`,
+);
+writeProfile(readyDir, {
+  ...completeProfile,
+  projectName: live.project.name,
+  locked: true,
+});
 
-assert.equal(evaluateConfigReady(readyDir).status, "ready", "locked matching profile is ready");
-assert.equal(hook(readyDir, "write a login smoke test").code, 0, "ready: work prompt allowed");
+assert.equal(
+  evaluateConfigReady(readyDir).status,
+  "ready",
+  "locked matching profile is ready",
+);
+assert.equal(
+  hook(readyDir, "write a login smoke test").code,
+  0,
+  "ready: work prompt allowed",
+);
 
 const missing = tmp();
 assert.equal(evaluateConfigReady(missing).status, "missing");
-assert.equal(hook(missing, "write a login smoke test").code, 2, "missing: work blocked");
+assert.equal(
+  hook(missing, "write a login smoke test").code,
+  2,
+  "missing: work blocked",
+);
 
 const broken = tmp();
 writeFileSync(join(broken, "harness.config.json"), "{ not json", "utf8");
 assert.equal(evaluateConfigReady(broken).status, "broken");
-assert.equal(hook(broken, "write a smoke test").code, 2, "broken JSON: work blocked");
+assert.equal(
+  hook(broken, "write a smoke test").code,
+  2,
+  "broken JSON: work blocked",
+);
 
 const unlocked = tmp();
-writeFileSync(join(unlocked, "harness.config.json"), `${JSON.stringify(live, null, 2)}\n`);
-writeProfile(unlocked, { ...completeProfile, projectName: live.project.name, locked: false });
+writeFileSync(
+  join(unlocked, "harness.config.json"),
+  `${JSON.stringify(live, null, 2)}\n`,
+);
+writeProfile(unlocked, {
+  ...completeProfile,
+  projectName: live.project.name,
+  locked: false,
+});
 assert.equal(evaluateConfigReady(unlocked).status, "unlocked");
-assert.equal(hook(unlocked, "write a login smoke test").code, 2, "unlocked: work blocked");
-assert.equal(hook(unlocked, "npm run harness:lock").code, 0, "unlocked: lock prompt allowed");
-assert.equal(lockProjectProfile(unlocked).ok, true, "lock signs off a complete profile");
+assert.equal(
+  hook(unlocked, "write a login smoke test").code,
+  2,
+  "unlocked: work blocked",
+);
+assert.equal(
+  hook(unlocked, "npm run harness:lock").code,
+  0,
+  "unlocked: lock prompt allowed",
+);
+assert.equal(
+  lockProjectProfile(unlocked).ok,
+  true,
+  "lock signs off a complete profile",
+);
 assert.equal(evaluateConfigReady(unlocked).status, "ready");
-assert.equal(hook(unlocked, "write a login smoke test").code, 0, "after lock: work allowed");
+assert.equal(
+  hook(unlocked, "write a login smoke test").code,
+  0,
+  "after lock: work allowed",
+);
 
 const template = tmp();
-writeFileSync(join(template, "harness.config.json"), `${JSON.stringify(live, null, 2)}\n`);
+writeFileSync(
+  join(template, "harness.config.json"),
+  `${JSON.stringify(live, null, 2)}\n`,
+);
 writeProfile(
   template,
   {
     key: "<short-kebab-key>",
     displayName: "<Project Name>",
     owner: "<a person, not a team — replace before compose>",
-    adapter: "cypress",
+    adapter: ADAPTER,
     projectName: live.project.name,
     repo: "<path or URL of the repo this composes into>",
     adapters: { claude: { enabled: true } },
@@ -93,18 +149,39 @@ writeProfile(
   "unfilled.json",
 );
 assert.equal(evaluateConfigReady(template).status, "unconfigured");
-assert.equal(lockProjectProfile(template).ok, false, "lock refuses a template profile");
+assert.equal(
+  lockProjectProfile(template).ok,
+  false,
+  "lock refuses a template profile",
+);
 assert.equal(hook(template, "add a checkout spec").code, 2);
-assert.equal(hook(template, "Configure the Cypress harness for this project").code, 0);
+assert.equal(
+  hook(template, `Configure the ${ADAPTER} harness for this project`).code,
+  0,
+);
+// And with no framework name at all, since the phrase is optional in CONFIGURE_RE.
+assert.equal(hook(template, "Configure the harness for this project").code, 0);
 
 assert.equal(
-  CONFIGURE_RE.test("write a login smoke test and use the module from harness.config.json"),
+  CONFIGURE_RE.test(
+    "write a login smoke test and use the module from harness.config.json",
+  ),
   false,
   "work prompt mentioning harness.config.json is not configure",
 );
-assert.equal(hook(template, "write a login smoke test and use the module from harness.config.json").code, 2);
+assert.equal(
+  hook(
+    template,
+    "write a login smoke test and use the module from harness.config.json",
+  ).code,
+  2,
+);
 
 const here = evaluateConfigReady(ROOT);
-assert.equal(here.status, "ready", "this clone must be complete and locked before push");
+assert.equal(
+  here.status,
+  "ready",
+  "this clone must be complete and locked before push",
+);
 
 console.log("test-config-ready: all use cases passed");

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   findDivergentRequirements,
   findUnknownSpecRequirementIds,
@@ -59,25 +60,93 @@ try {
     "an unavailable base ref must return null for the offline-safe path",
   );
 
+  // The fixture is a miniature clone of THIS adapter, not a hardcoded Cypress one: the check now
+  // reads testRoot and the spec suffix from harness.config.json and imports the test-call idiom
+  // from the adapter's patterns module, so the fixture has to carry both. Building it from the
+  // live repo is also what makes this test prove something in either adapter — a hardcoded
+  // cypress/tests fixture would have found zero specs elsewhere and passed while checking nothing.
+  const liveRoot = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+  );
+  const config = JSON.parse(
+    fs.readFileSync(path.join(liveRoot, "harness.config.json"), "utf8"),
+  );
+  const { framework } = config;
+  const { testRoot, specGlob } = config.project;
+  const suffix = path.basename(specGlob).match(/^\*\.([A-Za-z]+)\./)?.[1];
+  assert.ok(suffix, `cannot derive spec suffix from specGlob "${specGlob}"`);
+  const extension = (
+    specGlob.match(/\{([^}]+)\}/)?.[1] ?? specGlob.split(".").pop()
+  )
+    .split(",")[0]
+    .trim();
+
+  fs.writeFileSync(
+    path.join(temporaryRoot, "harness.config.json"),
+    `${JSON.stringify(config, null, 2)}\n`,
+  );
+  // Every declared root must exist: the patterns module refuses to build a scanner against a root
+  // that is not on disk, because a scope that matches nothing reports a clean tree. A fixture that
+  // only created testRoot was not a valid clone.
+  for (const key of ["testRoot", "configRoot", "commandRoot"]) {
+    if (config.project[key]) {
+      fs.mkdirSync(path.join(temporaryRoot, config.project[key]), {
+        recursive: true,
+      });
+    }
+  }
+
+  // What a scanner needs to load, as a list rather than as whatever happened to be enough last
+  // time. The patterns module imports the L3 pattern layer, which imports nothing further; when
+  // that dependency grows, this list is the one place to extend.
+  const hooksDirectory = path.join(temporaryRoot, ".claude", "hooks");
+  fs.mkdirSync(hooksDirectory, { recursive: true });
+  for (const file of [`${framework}.patterns.mjs`, "rule-engine.mjs"]) {
+    fs.copyFileSync(
+      path.join(liveRoot, ".claude", "hooks", file),
+      path.join(hooksDirectory, file),
+    );
+  }
+  fs.mkdirSync(path.join(temporaryRoot, "harness"), { recursive: true });
+  for (const file of ["patterns.mjs"]) {
+    fs.copyFileSync(
+      path.join(liveRoot, "harness", file),
+      path.join(temporaryRoot, "harness", file),
+    );
+  }
+
   const specDirectory = path.join(
     temporaryRoot,
-    "cypress",
+    testRoot,
     "tests",
     "products",
     "smoke",
   );
   fs.mkdirSync(specDirectory, { recursive: true });
+  // The test-call keyword differs per framework, so take it from the same module the check does.
+  const { testTitleRe } = await import(
+    pathToFileURL(path.join(hooksDirectory, `${framework}.patterns.mjs`)).href
+  );
+  const call = testTitleRe.source.includes("it|specify") ? "it" : "test";
   fs.writeFileSync(
-    path.join(specDirectory, "products.cy.js"),
-    'it("[AE-PRODUCTS-002] grid renders", { tags: ["@AE-PRODUCTS-002", "@smoke", "@P0"] }, () => {});\n',
+    path.join(specDirectory, `products.${suffix}.${extension}`),
+    `${call}("[AE-PRODUCTS-002] grid renders", () => {});\n`,
   );
   assert.deepEqual(
-    findUnknownSpecRequirementIds(temporaryRoot, new Set(["AE-PRODUCTS-001"])),
+    await findUnknownSpecRequirementIds(
+      temporaryRoot,
+      new Set(["AE-PRODUCTS-001"]),
+    ),
     ["AE-PRODUCTS-002"],
     "a spec id that is not active in the registry must be rejected",
   );
   assert.deepEqual(
-    findUnknownSpecRequirementIds(temporaryRoot, new Set(["AE-PRODUCTS-002"])),
+    await findUnknownSpecRequirementIds(
+      temporaryRoot,
+      new Set(["AE-PRODUCTS-002"]),
+    ),
     [],
     "a spec id active in the registry must be allowed",
   );

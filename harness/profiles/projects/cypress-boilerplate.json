@@ -2,7 +2,7 @@
   "$comment": "Profile for the Cypress boilerplate itself — the reference instantiation of the cypress adapter. Every field below is a project fact; all policy comes from adapters/cypress.json.",
   "key": "cypress-boilerplate",
   "displayName": "Cypress Automation Boilerplate",
-  "owner": "cypress-harness-maintainers",
+  "owner": "Yagya Bhatta",
   "adapter": "cypress",
   "language": "javascript",
   "projectName": "cypress-ai-agentic-test-development",

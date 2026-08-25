@@ -125,6 +125,43 @@ try {
     /legacy PASS_WITH_ACTIONS verdict\(s\) lack named actions/,
   );
 
+  // M4 — QA effort per accepted scenario. This ledger had no coverage at all before the engine
+  // merged the two adapters' evidence pipelines, which is precisely how it could have been dropped
+  // during that merge without a single test going red. Rejected and malformed rows must lower the
+  // denominator rather than skew the mean.
+  assert.equal(cypress.metrics.metrics.M4.status, "unavailable");
+  assert.equal(cypress.metrics.metrics.M4.value, null);
+  assert.match(
+    cypress.metrics.metrics.M4.reason,
+    /No accepted-scenario effort/,
+  );
+
+  fs.writeFileSync(
+    path.join(cypressRoot, "evidence", "effort-log.jsonl"),
+    [
+      { requirementId: requirement.id, minutes: 30, accepted: true },
+      { requirementId: requirement.id, minutes: 50, accepted: true },
+      { requirementId: requirement.id, minutes: 999, accepted: false },
+      { requirementId: requirement.id, minutes: "nope", accepted: true },
+    ]
+      .map((entry) =>
+        JSON.stringify({ ...entry, timestamp: "2026-01-01T00:00:00.000Z" }),
+      )
+      .map((line) => `${line}\n`)
+      .join(""),
+  );
+  const withEffort = buildEvidence({
+    root: cypressRoot,
+    framework: "cypress",
+    reportPath: cypressReport,
+    runId: "cypress-effort",
+    now: "2026-01-01T00:00:00.000Z",
+  });
+  assert.equal(withEffort.metrics.metrics.M4.status, "available");
+  assert.equal(withEffort.metrics.metrics.M4.value, 40);
+  assert.equal(withEffort.metrics.metrics.M4.denominator, 2);
+  assert.equal(withEffort.metrics.metrics.M4.unit, "person-minutes");
+
   const playwrightRoot = fixtureRoot();
   roots.push(playwrightRoot);
   const playwrightReport = path.join(playwrightRoot, "report.json");

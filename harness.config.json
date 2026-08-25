@@ -19,6 +19,7 @@
   "project": {
     "name": "cypress-ai-agentic-test-development",
     "architecture": "Config → Commands → Tests",
+    "pattern": "command-first",
     "testRoot": "cypress",
     "configRoot": "cypress/configs",
     "commandRoot": "cypress/support/commands",
@@ -36,6 +37,7 @@
   "rules": [
     {
       "id": "no-hard-wait",
+      "concern": "WAIT",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "cy.wait(<number>)",
@@ -45,6 +47,7 @@
     },
     {
       "id": "no-hardcoded-selector",
+      "concern": "SELECTOR",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a selector literal in a spec or command",
@@ -54,6 +57,7 @@
     },
     {
       "id": "no-hardcoded-route",
+      "concern": "ROUTE",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a URL literal in cy.visit()",
@@ -63,6 +67,7 @@
     },
     {
       "id": "no-page-object",
+      "concern": "ARCH-BOUNDARY",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "*.actions.js files or page-object wrappers",
@@ -72,6 +77,7 @@
     },
     {
       "id": "require-auth-command",
+      "concern": "CACHED-AUTH",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "an auth-required spec without an auth call",
@@ -81,6 +87,7 @@
     },
     {
       "id": "no-credential-literal",
+      "concern": "CRED",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a password, secret, API key or token assigned a literal string",
@@ -90,6 +97,7 @@
     },
     {
       "id": "smoke-read-only",
+      "concern": "SMOKE-RO",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "POST/PUT/PATCH/DELETE in a smoke spec",
@@ -98,7 +106,28 @@
       "message": "Write request in smoke suite. Smoke tests must remain read-only."
     },
     {
+      "id": "locator-priority",
+      "concern": "LOCATOR-PRIORITY",
+      "severity": "review",
+      "enforcement": "QA gate",
+      "never": "skip semantic locators without a reason",
+      "instead": "cy.findByRole(), cy.findByLabelText(), cy.findByText(), then cy.getByTestId()",
+      "why": "Semantic locators are more stable and accessible.",
+      "message": "Follow the configured locator priority."
+    },
+    {
+      "id": "narrow-before-index",
+      "concern": "LOCATOR-NARROW",
+      "severity": "review",
+      "enforcement": "QA gate",
+      "never": "use .eq(), .first() or .last() where a filter can identify the element",
+      "instead": ".filter(), .contains(), or .within() to disambiguate by content or ancestor",
+      "why": "Index-based locators silently target the wrong element when the UI changes.",
+      "message": "Narrow the locator with a filter before using an index."
+    },
+    {
       "id": "search-before-create",
+      "concern": "SEARCH-FIRST",
       "severity": "review",
       "enforcement": "QA gate",
       "never": "a new config, command or spec without searching first",
@@ -108,6 +137,7 @@
     },
     {
       "id": "one-requirement-tag",
+      "concern": "TRACE",
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "a spec with no requirement tag, or more than one",
