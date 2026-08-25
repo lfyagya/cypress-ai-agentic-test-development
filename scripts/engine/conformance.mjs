@@ -138,6 +138,30 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
   const declared = config.wiring?.verifyScript;
   if (!pipeline && declared && !declared.startsWith("<")) pipeline = declared;
 
+  // A script CI never invokes is not a pipeline. Look for a workflow that both references the rules
+  // check and has an uncommented pull_request or push trigger — a repo whose triggers are commented
+  // out has the script and not the enforcement, and reporting that as plain "ok" would be the same
+  // declared-but-not-delivered shape the invariants exist to catch.
+  let automated = null;
+  try {
+    const workflowDirectory = path.join(root, ".github", "workflows");
+    for (const file of fs.readdirSync(workflowDirectory)) {
+      if (!/\.ya?ml$/.test(file)) continue;
+      const text = fs.readFileSync(path.join(workflowDirectory, file), "utf8");
+      const runsRules =
+        /check-drift|validate-.*-rules|check:rules|run verify/.test(text);
+      const autoTrigger = text
+        .split(/\r?\n/)
+        .some((line) => /^\s*(pull_request|push):/.test(line));
+      if (runsRules && autoTrigger) {
+        automated = file;
+        break;
+      }
+    }
+  } catch {
+    automated = null;
+  }
+
   if (writeHooks === 0) {
     record(
       "I2",
@@ -153,6 +177,15 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
       "write-time hooks present, but no script runs the rules check and wiring.verifyScript names " +
         "no entry point either — so nothing enforces the same rules in the pipeline",
     );
+  } else if (!automated) {
+    record(
+      "I2",
+      "Rules reach writer and pipeline",
+      "ok",
+      `${writeHooks} write-time hook(s) via ${blocking.join(", ") || "advisory tooling only"}; ` +
+        `${pipeline} exists but no workflow runs it on push or pull_request, so the CI backstop is ` +
+        `dormant and human-authored edits are unchecked`,
+    );
   } else if (blocking.length === 0) {
     record(
       "I2",
@@ -166,7 +199,7 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
       "I2",
       "Rules reach writer and pipeline",
       "ok",
-      `${writeHooks} write-time hook(s) via ${blocking.join(", ")}; pipeline: ${pipeline}`,
+      `${writeHooks} write-time hook(s) via ${blocking.join(", ")}; pipeline: ${pipeline} via ${automated}`,
     );
   }
 }
