@@ -164,7 +164,7 @@ assert.deepEqual(
   }
 }
 
-// 6. An unknown pattern is a missing dimension, not a silent no-op.
+// 7. An unknown pattern is a missing dimension, not a silent no-op.
 assert.throws(
   () => loadPattern("no-such-pattern"),
   /unknown architecture pattern/,
