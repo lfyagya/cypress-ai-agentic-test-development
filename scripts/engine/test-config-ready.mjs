@@ -55,6 +55,23 @@ const completeProfile = {
   projectName: "payments-web",
   repo: "https://github.com/acme/payments",
   adapters: { claude: { enabled: true } },
+  pattern: "command-first",
+  paths: {
+    testRoot: "tests",
+    configRoot: "config",
+    commandRoot: "support/commands",
+    specGlob: "tests/**/*.spec.js",
+  },
+  wiring: {
+    packageManager: "npm",
+    workspacePackage: false,
+    verifyScript: "npm run verify",
+  },
+  strategy: {
+    auth: "cached-session",
+    testData: "fresh",
+    credentialSource: "ci-secret",
+  },
 };
 
 const readyDir = tmp();

@@ -17,7 +17,13 @@ const REQUIRED_PROFILE = [
   "projectName",
   "repo",
   "adapter",
+  "pattern",
 ];
+const REQUIRED_BLOCKS = {
+  paths: ["testRoot", "configRoot", "commandRoot", "specGlob"],
+  wiring: ["packageManager", "workspacePackage", "verifyScript"],
+  strategy: ["auth", "testData", "credentialSource"],
+};
 
 function isPlaceholder(value) {
   if (value == null || String(value).trim() === "") return true;
@@ -58,6 +64,19 @@ function profileIssues(profile) {
       issues.push(
         `profile.${field} is missing or still a template placeholder`,
       );
+    }
+  }
+  for (const [block, fields] of Object.entries(REQUIRED_BLOCKS)) {
+    if (!profile[block] || typeof profile[block] !== "object") {
+      issues.push(`profile.${block} is required`);
+      continue;
+    }
+    for (const field of fields) {
+      if (isPlaceholder(profile[block][field])) {
+        issues.push(
+          `profile.${block}.${field} is missing or still a template placeholder`,
+        );
+      }
     }
   }
   if (!adaptersOn(profile.adapters)) {

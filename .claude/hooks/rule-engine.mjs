@@ -60,6 +60,7 @@ export function readProjectPaths(hooksModuleUrl) {
     throw new Error(
       `cannot read project paths from ${configPath}: ${error.message}. Rule patterns are derived ` +
         `from the declared roots, so an unreadable config must fail loudly rather than scan nothing.`,
+      { cause: error },
     );
   }
   for (const key of ["testRoot", "commandRoot", "specGlob"]) {

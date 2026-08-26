@@ -33,6 +33,16 @@
   "loops": {
     "gateRepairLimit": 3
   },
+  "wiring": {
+    "packageManager": "npm",
+    "workspacePackage": false,
+    "verifyScript": "npm run verify"
+  },
+  "strategy": {
+    "auth": "cached-session",
+    "testData": "fresh",
+    "credentialSource": "ci-secret"
+  },
   "qaFoundations": "harness/qa-automation-foundations.md",
   "rules": [
     {

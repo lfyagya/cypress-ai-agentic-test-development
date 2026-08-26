@@ -7,6 +7,23 @@
   "language": "javascript",
   "projectName": "cypress-ai-agentic-test-development",
   "repo": "cypress-ai-agentic-test-development",
+  "pattern": "command-first",
+  "paths": {
+    "testRoot": "cypress",
+    "configRoot": "cypress/configs",
+    "commandRoot": "cypress/support/commands",
+    "specGlob": "cypress/tests/**/*.cy.{js,ts}"
+  },
+  "wiring": {
+    "packageManager": "npm",
+    "workspacePackage": false,
+    "verifyScript": "npm run verify"
+  },
+  "strategy": {
+    "auth": "cached-session",
+    "testData": "fresh",
+    "credentialSource": "ci-secret"
+  },
   "$adapters": "This reference instantiation deliberately enables all four tools to demonstrate every projection. A real project should enable only the tools its team uses — the _template default is claude+copilot — because each disabled adapter's generated files are removed on the next sync.",
   "adapters": {
     "claude": {

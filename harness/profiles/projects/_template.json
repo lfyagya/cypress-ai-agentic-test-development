@@ -10,6 +10,24 @@
 
   "projectName": "<name written into harness.config.json project.name>",
   "repo": "<path or URL of the repo this composes into>",
+
+  "pattern": "<command-first | helper-first | pom | bdd-pom | data-driven>",
+  "paths": {
+    "testRoot": "<test root>",
+    "configRoot": "<config root>",
+    "commandRoot": "<commands/helpers/pages root>",
+    "specGlob": "<spec glob>"
+  },
+  "wiring": {
+    "packageManager": "npm",
+    "workspacePackage": false,
+    "verifyScript": "<existing verification command>"
+  },
+  "strategy": {
+    "auth": "<cached-session | storage-state | per-test-login | token-injection>",
+    "testData": "<fresh | seeded | cached-fixture>",
+    "credentialSource": "<vault | env | ci-secret>"
+  },
   "locked": false,
 
   "$adapters": "ASK THE TEAM. Which AI coding tools will actually be used here? Enable each one the team uses; disabling one removes its generated files on the next sync, so a Claude-only team stops carrying files it never opens. At least one must stay enabled. Claude, Copilot, and Cursor refuse a violating write via PreToolUse/preToolUse (exit 2). Codex has no hook API — its gate is `npm run verify` and the pre-push hook. See docs/architecture/cross-tool-configuration.md.",

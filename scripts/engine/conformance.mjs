@@ -181,7 +181,7 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
     record(
       "I2",
       "Rules reach writer and pipeline",
-      "ok",
+      "gap",
       `${writeHooks} write-time hook(s) via ${blocking.join(", ") || "advisory tooling only"}; ` +
         `${pipeline} exists but no workflow runs it on push or pull_request, so the CI backstop is ` +
         `dormant and human-authored edits are unchecked`,
