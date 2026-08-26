@@ -137,6 +137,10 @@ Missing or failed evidence is a `BLOCK`; do not claim that you ran commands your
   `npm run evidence:record -- gate ... --verdict PASS_WITH_ACTIONS --actions "a|b"`.
 - **BLOCK** — must not merge; blockers listed with file:line references
 
+For `PASS` or `PASS_WITH_ACTIONS`, output one exact `npm run evidence:record -- gate` command for
+each accepted, active requirement at `--attempt 1`. The parent or human runs it after the verdict;
+the read-only gate must never append its own evidence. Output no append command for `BLOCK`.
+
 ## Phase 1: Architecture Compliance
 
 - [ ] No `*.actions.js` files created
@@ -232,6 +236,10 @@ Phase 6: Environment Hygiene        — [PASS/FAIL]
 
 ### Warnings
 - [file:line] — [description]
+
+### Evidence Append
+- Run after this response, once per accepted requirement: `npm run evidence:record -- gate --requirement [id] --attempt 1 --verdict [PASS | PASS_WITH_ACTIONS]`
+- For `PASS_WITH_ACTIONS`, include the exact named `--actions "a|b"` and optional `--resolution` values from this verdict.
 ```
 
 ## Required Cypress skills for this role

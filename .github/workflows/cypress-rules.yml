@@ -28,6 +28,11 @@ on:
   #     - "package.json"
   #     - "package-lock.json"
   workflow_dispatch:
+    inputs:
+      task_id:
+        description: Verified task id
+        required: true
+        type: string
 
 jobs:
   validate-architecture:
@@ -44,6 +49,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+
+      - run: npm ci
+
+      - name: Verify task manifest
+        run: npm run task:check -- --id "${{ inputs.task_id }}"
 
       - name: Verify harness projections
         run: npm run harness:check && npm run harness:test

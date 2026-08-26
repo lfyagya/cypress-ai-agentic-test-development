@@ -614,18 +614,18 @@ test lacking a requirement id.
 | `partial`   | tests ran but at least one has no requirement id            |
 | `ready`     | every executed test maps to a requirement                   |
 
-### 7.3 The four metrics
+### 7.3 The five metrics
 
 | Id     | Metric                          | Source                                              | How it gets fed                  |
 | ------ | ------------------------------- | --------------------------------------------------- | -------------------------------- |
 | **M1** | Accepted-test rate              | `gate-log.jsonl`, first submission only             | `evidence:record gate`           |
 | **M2** | First-pass CI rate              | `ci-history.jsonl`, PR + attempt 1, excluding `ENV` | CI step + `evidence:backfill`    |
 | **M3** | New-test flake rate             | `runs/**` — 5 runs on one unchanged commit, 30 days | automatic, accrues               |
+| **M4** | QA effort per accepted scenario | `effort-log.jsonl`                                  | `evidence:effort`                |
 | **M5** | Requirement-to-test coverage    | active requirements vs latest run                   | **fully automatic**              |
 
-Metric ids are stable identifiers, not a sequence. `M4` (QA effort per accepted scenario) was a
-manual-entry metric nothing consumed; it was removed to keep the ledger lean rather than carry an
-input no automation feeds. The id is retired, not renumbered, so `M5` keeps its meaning.
+M4 is manual input and remains unavailable until accepted effort is appended. Use it only for the
+same accepted requirement recorded in M1; M5 keeps its stable identifier across history.
 
 **Unavailable is never zero.** A metric with no input returns `null` with a `reason`:
 
@@ -642,7 +642,7 @@ input no automation feeds. The id is retired, not renumbered, so `M5` keeps its 
 A `0%` accepted-test rate and "no gate evidence yet" are different facts. Reporting the second as the
 first destroys the ledger's credibility — the exact failure this harness exists to fix.
 
-### 7.4 Recording M1 and M2
+### 7.4 Recording M1, M2, and M4
 
 ```bash
 npm run evidence:record -- gate --requirement PAY-CHECKOUT-001 --attempt 1 --verdict PASS
@@ -664,6 +664,10 @@ verdict.
 npm run evidence:record -- ci --pipeline 4242 --trigger pr --attempt 1 --outcome passed
 ```
 
+```bash
+npm run evidence:effort -- --requirement PAY-CHECKOUT-001 --minutes 45
+```
+
 Validation is the point. An unknown requirement id or an out-of-range verdict would **not** crash
 `evidence.mjs` — it would silently drop the row and understate the metric. Both are refused at write
 time, as is a duplicate `gate` or `ci` row for the same id and attempt (`--force` overrides).
@@ -673,7 +677,8 @@ quality. `--failure-class ENV` on a failed CI row keeps an infrastructure outage
 test failure.
 
 **Record the gate verdict from outside the gate.** `pre-merge-qa-gate` has no Write and no Bash by
-design, so the thing being measured never writes its own scorecard.
+design, so the thing being measured never writes its own scorecard. Its accepted verdict now outputs
+the exact append command; run it once for each accepted requirement.
 
 ### 7.5 Durable M2
 

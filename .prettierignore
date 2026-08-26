@@ -44,12 +44,14 @@ scripts/engine/test-config-paths-honest.mjs
 .claude/hooks/session-end-reminder.mjs
 docs/harness-conformance-spec.md
 docs/harness-onboarding-runbook.md
+docs/task-control.md
 harness/concerns.mjs
 harness/patterns.mjs
 harness/profiles/bin/compose-harness-config.mjs
 harness/profiles/bin/test-compose-tiers.mjs
 scripts/backfill-ci-evidence.mjs
 scripts/check-requirement-consistency.mjs
+scripts/check-task.mjs
 scripts/engine/check-drift.mjs
 scripts/engine/config-ready.mjs
 scripts/engine/conformance.mjs
@@ -65,7 +67,9 @@ scripts/engine/test-patterns.mjs
 scripts/engine/test-requirement-consistency.mjs
 scripts/evidence.mjs
 scripts/lib/cli.mjs
+scripts/lib/task-protocol.mjs
 scripts/record-evidence.mjs
+scripts/task-control.mjs
 scripts/test-evidence.mjs
 scripts/test-record-evidence.mjs
 # END lf-qa-harness-os
