@@ -1,14 +1,10 @@
 name: Cypress Tests
 
-# BLOCKER: GitHub account billing lock — automatic Actions minutes are unavailable, so only manual
-# runs work today. The job logic already keys off github.event_name (smoke on PR; smoke + e2e on
-# push to main), so restoring automatic CI once billing is fixed is a single step: uncomment the two
-# trigger blocks in `on:` below. Do not re-enable them while the account is locked.
 on:
-  # pull_request:
-  #   branches: [main]
-  # push:
-  #   branches: [main]
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -29,20 +25,21 @@ on:
         type: string
 
 env:
-  NODE_VERSION: "22"
+  NODE_VERSION: "24"
 
 jobs:
   smoke:
     name: Smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - name: Verify task manifest
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'task/'))
         run: npm run task:check -- --id "${{ inputs.task_id }}"
       - name: Write runtime configuration
         # BASE_URL is a non-secret public target for this project (Automation Exercise). A repo
@@ -99,7 +96,7 @@ jobs:
         run: npm run evidence:build
       - name: Upload reports and evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: smoke-evidence-${{ github.run_id }}
           if-no-files-found: warn
@@ -119,8 +116,8 @@ jobs:
        inputs.environment != 'prod' &&
        (inputs.test_scope == 'e2e' || inputs.test_scope == 'all'))
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -168,7 +165,7 @@ jobs:
         run: npm run evidence:build
       - name: Upload reports and evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-evidence-${{ github.run_id }}
           if-no-files-found: warn

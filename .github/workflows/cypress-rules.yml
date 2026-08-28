@@ -15,18 +15,15 @@ name: Cypress Architecture Rules
 #   - new page-object wrapper files are added
 # ─────────────────────────────────────────────────────────────────────────────
 
-# BLOCKER: GitHub account billing lock — automatic Actions minutes are unavailable, so only manual
-# runs work today. Restoring automatic CI once billing is fixed is a single step: uncomment the
-# `pull_request` block in `on:` below. Do not re-enable it while the account is locked.
 on:
-  # pull_request:
-  #   paths:
-  #     - "cypress/**"
-  #     - ".claude/hooks/**"
-  #     - "harness.config.json"
-  #     - "harness/**"
-  #     - "package.json"
-  #     - "package-lock.json"
+  pull_request:
+    paths:
+      - "cypress/**"
+      - ".claude/hooks/**"
+      - "harness.config.json"
+      - "harness/**"
+      - "package.json"
+      - "package-lock.json"
   workflow_dispatch:
     inputs:
       task_id:
@@ -41,18 +38,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: "22"
+          node-version: "24"
 
       - run: npm ci
 
       - name: Verify task manifest
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'task/')
         run: npm run task:check -- --id "${{ inputs.task_id }}"
 
       - name: Verify harness projections
