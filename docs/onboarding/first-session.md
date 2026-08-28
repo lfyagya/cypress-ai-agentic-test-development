@@ -132,15 +132,15 @@ flowchart TD
     Cx --> Floor
     H["Human edit"] --> Floor["npm run verify + pre-push<br/>(universal floor, free)"]
     Floor --> CI{"CI backstop"}
-    CI --> Off["AUTO TRIGGERS OFF<br/>account billing-locked<br/>manual dispatch only<br/>restore = uncomment pull_request/push"]
+    CI --> Off["AUTO CHECKS ENABLED<br/>requires GitHub runner allocation<br/>failure before setup = infrastructure"]
 
     style C3 fill:#fce8e6,stroke:#ea4335,color:#111
     style Floor fill:#fef7e0,stroke:#f9ab00,color:#111
     style Off fill:#fce8e6,stroke:#ea4335,color:#111
 ```
 
-Right now nothing runs tests or rule validation automatically on a PR — reviewers cannot rely on
-green checks until billing is restored.
+PRs request smoke and architecture validation automatically. Reviewers cannot treat a job that fails
+before setup as test evidence; resolve GitHub runner allocation first.
 
 ---
 
@@ -258,7 +258,7 @@ flowchart TD
 flowchart TD
     O["Decide today"]
     O --> a["Confirm accountable owner (pending)"]
-    O --> b["CI billing → uncomment auto PR/push triggers"]
+    O --> b["CI billing → restore GitHub runner allocation"]
     O --> c["Private/staging mirror? (none provided)"]
     O --> d["Synthetic account lifecycle<br/>(blocks future auth/mutating E2E)"]
     O --> e["Record a gate verdict for AE-PRODUCTS-003"]

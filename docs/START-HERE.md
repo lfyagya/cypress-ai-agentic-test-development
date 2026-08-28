@@ -357,12 +357,12 @@ failure. BUILD and the independent read-only EVALUATE gate are the normal test-a
 Invoke at most one specialist per task. This keeps the safety boundary without paying the coordination
 cost of a ceremonial multi-agent pipeline.
 
-| Role     | Agent                 | Model  | Why it is separate                                        |
-| -------- | --------------------- | ------ | --------------------------------------------------------- |
-| INTAKE   | `cypress-intake`      | sonnet | Verified context, requirements, and observed config before any test exists |
-| BUILD    | `cypress-generator`   | sonnet | Owns authoring for exactly one requirement                |
-| DIAGNOSE | `cypress-debugger`    | opus   | Root cause + compliant fix; hardest reasoning             |
-| EVALUATE | `pre-merge-qa-gate`   | opus   | **Read-only. A builder must never grade its own output.** |
+| Role     | Agent               | Model  | Why it is separate                                                         |
+| -------- | ------------------- | ------ | -------------------------------------------------------------------------- |
+| INTAKE   | `cypress-intake`    | sonnet | Verified context, requirements, and observed config before any test exists |
+| BUILD    | `cypress-generator` | sonnet | Owns authoring for exactly one requirement                                 |
+| DIAGNOSE | `cypress-debugger`  | opus   | Root cause + compliant fix; hardest reasoning                              |
+| EVALUATE | `pre-merge-qa-gate` | opus   | **Read-only. A builder must never grade its own output.**                  |
 
 Shipping the PR and maintaining the harness are not agents — the parent workflow (a human or the
 driving agent) owns them, using `npm run verify` and the standard PR template directly.
@@ -519,10 +519,10 @@ Supply `pre-merge-qa-gate` with the diff and the exact command output from Step 
 npm run cy:run:tag -- --env grepTags=@PAY-CHECKOUT-001
 ```
 
-| Verdict             | Meaning                                                                 |
-| ------------------- | ----------------------------------------------------------------------- |
-| `PASS`              | merge-ready; no required follow-ups                                     |
-| `PASS_WITH_ACTIONS` | merge-ready **now**; named non-blocking follow-ups only                 |
+| Verdict             | Meaning                                                                     |
+| ------------------- | --------------------------------------------------------------------------- |
+| `PASS`              | merge-ready; no required follow-ups                                         |
+| `PASS_WITH_ACTIONS` | merge-ready **now**; named non-blocking follow-ups only                     |
 | `BLOCK`             | do not merge; anything that must be fixed first is a blocker, not an action |
 
 `PASS_WITH_ACTIONS` is not "merge after the list is done." If work must complete before merge, the
@@ -616,13 +616,13 @@ test lacking a requirement id.
 
 ### 7.3 The five metrics
 
-| Id     | Metric                          | Source                                              | How it gets fed                  |
-| ------ | ------------------------------- | --------------------------------------------------- | -------------------------------- |
-| **M1** | Accepted-test rate              | `gate-log.jsonl`, first submission only             | `evidence:record gate`           |
-| **M2** | First-pass CI rate              | `ci-history.jsonl`, PR + attempt 1, excluding `ENV` | CI step + `evidence:backfill`    |
-| **M3** | New-test flake rate             | `runs/**` — 5 runs on one unchanged commit, 30 days | automatic, accrues               |
-| **M4** | QA effort per accepted scenario | `effort-log.jsonl`                                  | `evidence:effort`                |
-| **M5** | Requirement-to-test coverage    | active requirements vs latest run                   | **fully automatic**              |
+| Id     | Metric                          | Source                                              | How it gets fed               |
+| ------ | ------------------------------- | --------------------------------------------------- | ----------------------------- |
+| **M1** | Accepted-test rate              | `gate-log.jsonl`, first submission only             | `evidence:record gate`        |
+| **M2** | First-pass CI rate              | `ci-history.jsonl`, PR + attempt 1, excluding `ENV` | CI step + `evidence:backfill` |
+| **M3** | New-test flake rate             | `runs/**` — 5 runs on one unchanged commit, 30 days | automatic, accrues            |
+| **M4** | QA effort per accepted scenario | `effort-log.jsonl`                                  | `evidence:effort`             |
+| **M5** | Requirement-to-test coverage    | active requirements vs latest run                   | **fully automatic**           |
 
 M4 is manual input and remains unavailable until accepted effort is appended. Use it only for the
 same accepted requirement recorded in M1; M5 keeps its stable identifier across history.
@@ -715,16 +715,14 @@ Then upload the HTML report, screenshots (on failure), and `evidence/`. Videos a
 automatic triggers are active: **smoke on PR, full e2e on main.** Set `TEST_TIER` and `RUN_TRIGGER`
 so the run summary records which lane produced the evidence.
 
-### Billing lock (current)
+### GitHub Actions prerequisite
 
-**Blocker:** the GitHub account is billing-locked, so automatic `pull_request` / `push` workflows do
-not run. Both `cypress.yml` and `cypress-rules.yml` accept only `workflow_dispatch` until that is
-fixed. The intended `pull_request` / `push` triggers are commented at the top of each workflow file —
-restore them when billing is restored; do not re-enable while the lock remains.
+Both `cypress.yml` and `cypress-rules.yml` run automatically for their configured pull-request and
+push triggers. GitHub must be able to allocate Actions runners; a job that fails before any step runs
+is account infrastructure evidence, not a Cypress test result.
 
-Actions is **free with unlimited standard-runner minutes on public repositories**; private repos draw
-on a monthly allowance. An account-level billing lock blocks Actions on any repo regardless of
-visibility — an account state, not a plan limit. A self-hosted runner costs nothing but a machine.
+Resolve the GitHub account billing or Actions entitlement before treating green PR checks as available.
+A self-hosted runner is an alternative only when the repository owner deliberately provides one.
 
 ---
 

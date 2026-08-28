@@ -4,24 +4,21 @@
 
 ---
 
-## Current status — billing lock
+## Current status — Actions prerequisite
 
-**Blocker:** the GitHub account is billing-locked. Automatic Actions runs are unavailable.
+Automatic checks are enabled. GitHub must be able to allocate Actions runners for them to execute.
 
-| Workflow | File | Active trigger | Intended when billing is fixed |
-| --- | --- | --- | --- |
-| Cypress Tests | `cypress.yml` | `workflow_dispatch` only | `pull_request`, `push` to `main`, plus manual dispatch |
-| Architecture Rules | `cypress-rules.yml` | `workflow_dispatch` only | `pull_request` (path-filtered) plus manual dispatch |
+| Workflow           | File                | Active trigger                                    |
+| ------------------ | ------------------- | ------------------------------------------------- |
+| Cypress Tests      | `cypress.yml`       | `pull_request`, `push` to `main`, manual dispatch |
+| Architecture Rules | `cypress-rules.yml` | path-filtered `pull_request`, manual dispatch     |
 
-Each workflow file documents the restore shape in a top-of-file comment. **Do not re-enable automatic
-triggers while the account remains billing-locked.** Manual **Actions → Run workflow** is the only
-supported path until then.
+If GitHub fails a job before any workflow step starts, that is runner/account infrastructure evidence,
+not a Cypress test result. Resolve the account billing or Actions entitlement before relying on PR checks.
 
 ---
 
-## Pipeline Overview (intended design)
-
-When automatic triggers are restored:
+## Pipeline Overview
 
 ```mermaid
 flowchart TD
@@ -45,10 +42,10 @@ flowchart TD
     MANUAL --> SMOKE_MAIN
 ```
 
-| Workflow | File | What it checks | Blocks merge? |
-| --- | --- | --- | --- |
-| Architecture Rules | `cypress-rules.yml` | Non-negotiable framework rules + harness self-tests | Yes — when automatic PR runs are active |
-| Cypress Tests | `cypress.yml` — smoke / e2e | Smoke (and optional e2e) against the selected environment | Yes — tests must pass |
+| Workflow           | File                        | What it checks                                            | Blocks merge?                           |
+| ------------------ | --------------------------- | --------------------------------------------------------- | --------------------------------------- |
+| Architecture Rules | `cypress-rules.yml`         | Non-negotiable framework rules + harness self-tests       | Yes — when automatic PR runs are active |
+| Cypress Tests      | `cypress.yml` — smoke / e2e | Smoke (and optional e2e) against the selected environment | Yes — tests must pass                   |
 
 Today, only the **Manual** path in that diagram is live.
 
@@ -58,14 +55,14 @@ Today, only the **Manual** path in that diagram is live.
 
 Set these in **Repository Settings → Secrets and variables → Actions**:
 
-| Secret name | What it is |
-| --- | --- |
-| `BASE_URL` | Target app URL (optional override; public Automation Exercise default is baked into the workflow) |
-| `CYPRESS_USERNAME` | Test user login |
-| `CYPRESS_PASSWORD` | Test user password |
-| `CYPRESS_AUTH_URL` | Auth endpoint (e.g. `/api/auth/login`) |
-| `CYPRESS_PROJECT_ID` | Cypress Cloud project id (optional; required only for recording) |
-| `CYPRESS_RECORD_KEY` | Cypress Cloud record key (optional secret; required only for recording) |
+| Secret name          | What it is                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------- |
+| `BASE_URL`           | Target app URL (optional override; public Automation Exercise default is baked into the workflow) |
+| `CYPRESS_USERNAME`   | Test user login                                                                                   |
+| `CYPRESS_PASSWORD`   | Test user password                                                                                |
+| `CYPRESS_AUTH_URL`   | Auth endpoint (e.g. `/api/auth/login`)                                                            |
+| `CYPRESS_PROJECT_ID` | Cypress Cloud project id (optional; required only for recording)                                  |
+| `CYPRESS_RECORD_KEY` | Cypress Cloud record key (optional secret; required only for recording)                           |
 
 Create one set of secrets per environment using **GitHub Environments** when you need private targets:
 
@@ -100,10 +97,10 @@ Both workflows pin **Node.js 22**.
 Every run uploads artifacts (pass or fail) when the upload step runs. Find them in
 **Actions → [run] → Artifacts**:
 
-| Artifact | Contains | Retention |
-| --- | --- | --- |
-| `smoke-evidence-{run_id}` | `cypress/reports/html/`, `cypress/screenshots/`, `evidence/` | 14 days |
-| `e2e-evidence-{run_id}` | Same paths for the e2e job | 14 days |
+| Artifact                  | Contains                                                     | Retention |
+| ------------------------- | ------------------------------------------------------------ | --------- |
+| `smoke-evidence-{run_id}` | `cypress/reports/html/`, `cypress/screenshots/`, `evidence/` | 14 days   |
+| `e2e-evidence-{run_id}`   | Same paths for the e2e job                                   | 14 days   |
 
 Videos are **not** produced or uploaded: `cypress.config.js` sets `video: false`. Failure diagnosis
 uses screenshots (when captured) plus the Mochawesome HTML/JSON report. Enable video only if you
@@ -127,12 +124,12 @@ For an explicit local or custom-CI recording, run `npm run cy:run:cloud`.
 
 ## Environment → Branch Mapping (intended)
 
-| Branch / trigger | Environment | Scope |
-| --- | --- | --- |
-| Any PR (when restored) | `dev` | Smoke |
-| Push to `main` (when restored) | `qa` | Smoke + E2E |
-| Manual `prod` | `prod` | Smoke only |
-| Manual `dev` / `qa` | selected | Selectable |
+| Branch / trigger               | Environment | Scope       |
+| ------------------------------ | ----------- | ----------- |
+| Any PR (when restored)         | `dev`       | Smoke       |
+| Push to `main` (when restored) | `qa`        | Smoke + E2E |
+| Manual `prod`                  | `prod`      | Smoke only  |
+| Manual `dev` / `qa`            | selected    | Selectable  |
 
 ---
 
@@ -147,14 +144,14 @@ For an explicit local or custom-CI recording, run `npm run cy:run:cloud`.
 
 ## Debugging a CI-Only Failure
 
-| Cause | How to diagnose |
-| --- | --- |
-| Wrong environment URL | Check `BASE_URL` secret matches the target env |
-| Missing secret | Check the workflow log for `undefined` or empty values in `cypress.env.json` |
-| Timing on slow CI | Check if `cy.apiWait()` is used — CI machines are slower than local |
-| Auth failure | Check `CYPRESS_AUTH_URL` and credential secrets are set for the correct environment |
-| Intercept fired before registration | Check command order: `cy.apiIntercept()` must be before `cy.visit()` |
-| Job never started | Billing lock or Actions disabled — infrastructure, not a test failure (`ENV` in evidence) |
+| Cause                               | How to diagnose                                                                           |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| Wrong environment URL               | Check `BASE_URL` secret matches the target env                                            |
+| Missing secret                      | Check the workflow log for `undefined` or empty values in `cypress.env.json`              |
+| Timing on slow CI                   | Check if `cy.apiWait()` is used — CI machines are slower than local                       |
+| Auth failure                        | Check `CYPRESS_AUTH_URL` and credential secrets are set for the correct environment       |
+| Intercept fired before registration | Check command order: `cy.apiIntercept()` must be before `cy.visit()`                      |
+| Job never started                   | Billing lock or Actions disabled — infrastructure, not a test failure (`ENV` in evidence) |
 
 Steps:
 
@@ -173,12 +170,12 @@ Translate the same steps into a `buildspec.yml`:
 - Optional Cypress Cloud recording
 - Report + evidence upload to your chosen store
 
-| Concern | GitHub Actions | AWS CodeBuild |
-| --- | --- | --- |
-| Secrets | GitHub Secrets per environment | AWS Secrets Manager |
-| Parallelism | Separate jobs | Single instance or split workers |
-| Test results | HTML + evidence artifact | Upload to your reporting tool of choice |
-| Trigger | Webhook (when enabled) or manual | CodeBuild webhook or manual |
+| Concern      | GitHub Actions                   | AWS CodeBuild                           |
+| ------------ | -------------------------------- | --------------------------------------- |
+| Secrets      | GitHub Secrets per environment   | AWS Secrets Manager                     |
+| Parallelism  | Separate jobs                    | Single instance or split workers        |
+| Test results | HTML + evidence artifact         | Upload to your reporting tool of choice |
+| Trigger      | Webhook (when enabled) or manual | CodeBuild webhook or manual             |
 
 ---
 
