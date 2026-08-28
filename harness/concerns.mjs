@@ -60,6 +60,11 @@ export const CONCERNS = {
       "Spec §6.4: onboard at `review` so an existing untagged suite can adopt at all, then ratchet " +
       "to `block` after the project's first clean sprint. The ratchet date is recorded in the profile.",
   },
+  "FOCUSED-QUARANTINED": {
+    tier: 1,
+    summary: "no focused tests; skipped tests need a recorded quarantine",
+    why: "A focused test can hide suite failures, while an unrecorded skip hides risk with no owner.",
+  },
   "LOCATOR-PRIORITY": {
     tier: 1,
     summary: "prefer semantic locators over structural ones",

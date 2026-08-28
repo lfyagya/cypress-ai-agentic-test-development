@@ -37,6 +37,10 @@ const SAMPLES = {
     'describe("cart", () => { it("works", () => { cy.log("x"); }); });',
   ],
   "smoke-read-only": [SMOKE, 'cy.request("POST", "/api/orders", {});'],
+  "focused-or-quarantined-test": [
+    E2E,
+    'beforeEach(() => { cy.ensureAuthenticated(); }); it.only("[REQ-1] cart", { tags: ["@REQ-1", "@regression", "@P0", "@e2e"] }, () => {});',
+  ],
   // A test with no requirement id in its title and no tags. Path contains "public" so the auth
   // rule stays silent and this sample isolates the tag rule.
   "one-requirement-tag": [

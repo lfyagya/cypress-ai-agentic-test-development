@@ -68,3 +68,30 @@ assert.deepEqual(
     "Action class or page-object import. Command-first architecture forbids these dependencies.",
   ],
 );
+
+const focused = scanContent(
+  "cypress/tests/cart/e2e/cart.cy.js",
+  "beforeEach(() => { cy.ensureAuthenticated(); });\n" +
+    'it.only("[REQ-1] cart", { tags: ["@REQ-1", "@regression", "@P0", "@e2e"] }, () => {});',
+  { selectors: new Set(), routes: new Set(), endpoints: new Set() },
+  root,
+);
+assert.deepEqual(
+  focused.map(({ message }) => message),
+  [
+    "Focused test or unrecorded quarantine. Remove .only; a skip needs // @quarantine ISSUE-123: reason directly above it. (.only is never permitted.)",
+  ],
+);
+
+assert.equal(
+  scanContent(
+    "cypress/tests/cart/e2e/cart.cy.js",
+    "beforeEach(() => { cy.ensureAuthenticated(); });\n" +
+      "// @quarantine QA-123: payment sandbox is unavailable\n" +
+      'it.skip("[REQ-1] cart", { tags: ["@REQ-1", "@regression", "@P0", "@e2e"] }, () => {});',
+    { selectors: new Set(), routes: new Set(), endpoints: new Set() },
+    root,
+  ).length,
+  0,
+  "a recorded quarantine must stay scannable without being blocked",
+);

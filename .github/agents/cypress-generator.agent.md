@@ -120,6 +120,22 @@ overall verdict; and any gaps or risks. It never invents evidence or coverage.
 `PASS_WITH_ACTIONS` counts as accepted for M1. Named actions (and optional resolution notes) are
 preserved on the gate ledger row and surfaced in `metrics.json` as `gateFollowUps`.
 
+### Role contracts
+
+Each role has a fixed scope. Crossing it — grading your own work, writing files from EVALUATE,
+running DIAGNOSE speculatively — defeats the separation that makes AI output trustworthy.
+
+| Role     | Agent              | Precondition                          | Input                          | Output                                    | Permissions       | Cannot                              |
+| -------- | ------------------ | ------------------------------------- | ------------------------------ | ----------------------------------------- | ----------------- | ----------------------------------- |
+| INTAKE   | `cypress-intake`   | New project or module, no context yet | App source, product docs       | `docs/application-intelligence/**`, requirement drafts | Read + Write docs | Write specs or commands             |
+| BUILD    | `cypress-generator`| One active requirement id approved    | A single `active` requirement  | Config constants, commands, one spec      | Read + Write `cypress/**` | Issue verdicts, invoke gate  |
+| EVALUATE | `pre-merge-qa-gate`| BUILD has run and provided evidence   | Changed files + command output | Verdict (PASS / PASS_WITH_ACTIONS / BLOCK) | **Read only** (no Write, no Bash) | Fix findings, append evidence |
+| DIAGNOSE | `cypress-debugger` | A reproducible failure exists         | Failure evidence               | Root cause + targeted fix                 | Read + Write `cypress/**` | Run speculatively, grade output |
+
+Repairs by BUILD after a BLOCK verdict count against `loops.gateRepairLimit` (default 3). Reaching
+the limit without a PASS escalates to the human with the remaining evidence-backed blockers — the
+loop does not continue indefinitely.
+
 ## Build order
 
 Search existing values before creating anything, then work in this order:

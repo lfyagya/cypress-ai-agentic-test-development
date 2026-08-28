@@ -112,6 +112,22 @@ overall verdict; and any gaps or risks. It never invents evidence or coverage.
 `PASS_WITH_ACTIONS` counts as accepted for M1. Named actions (and optional resolution notes) are
 preserved on the gate ledger row and surfaced in `metrics.json` as `gateFollowUps`.
 
+### Role contracts
+
+Each role has a fixed scope. Crossing it — grading your own work, writing files from EVALUATE,
+running DIAGNOSE speculatively — defeats the separation that makes AI output trustworthy.
+
+| Role     | Agent              | Precondition                          | Input                          | Output                                    | Permissions       | Cannot                              |
+| -------- | ------------------ | ------------------------------------- | ------------------------------ | ----------------------------------------- | ----------------- | ----------------------------------- |
+| INTAKE   | `cypress-intake`   | New project or module, no context yet | App source, product docs       | `docs/application-intelligence/**`, requirement drafts | Read + Write docs | Write specs or commands             |
+| BUILD    | `cypress-generator`| One active requirement id approved    | A single `active` requirement  | Config constants, commands, one spec      | Read + Write `cypress/**` | Issue verdicts, invoke gate  |
+| EVALUATE | `pre-merge-qa-gate`| BUILD has run and provided evidence   | Changed files + command output | Verdict (PASS / PASS_WITH_ACTIONS / BLOCK) | **Read only** (no Write, no Bash) | Fix findings, append evidence |
+| DIAGNOSE | `cypress-debugger` | A reproducible failure exists         | Failure evidence               | Root cause + targeted fix                 | Read + Write `cypress/**` | Run speculatively, grade output |
+
+Repairs by BUILD after a BLOCK verdict count against `loops.gateRepairLimit` (default 3). Reaching
+the limit without a PASS escalates to the human with the remaining evidence-backed blockers — the
+loop does not continue indefinitely.
+
 ## Required Input Evidence
 
 The invocation must identify the changed files and provide command output for:
@@ -138,13 +154,18 @@ the read-only gate must never append its own evidence. Output no append command 
 
 ## Phase 1: Architecture Compliance
 
-- [ ] No `*.actions.js` files created
-- [ ] No page-object wrappers introduced
+Read `harness.config.json` → `project.pattern` before evaluating this phase. The ARCH-BOUNDARY
+checks (marked ‡) apply only to `command-first` and `helper-first` projects. A project declaring
+`pom`, `bdd-pom`, or `data-driven` is not violating the rule by using page objects — it is using
+its declared architecture.
+
 - [ ] No `cy.wait(number)` in changed files
 - [ ] No hardcoded selectors in `*.cy.js` or `*.commands.js`
 - [ ] No hardcoded routes (except allowlisted `/`)
 - [ ] No duplicate command name registered in `commands.js`
 - [ ] No redundant config, command, or spec that duplicates existing ownership
+- [ ] ‡ No `*.actions.js` files created _(skip if `project.pattern` is `pom`, `bdd-pom`, or `data-driven`)_
+- [ ] ‡ No page-object wrappers introduced _(skip if `project.pattern` is `pom`, `bdd-pom`, or `data-driven`)_
 
 **Verdict if failed:** BLOCK
 
@@ -235,6 +256,7 @@ Phase 6: Environment Hygiene        — [PASS/FAIL]
 ### Evidence Append
 - Run after this response, once per accepted requirement: `npm run evidence:record -- gate --requirement [id] --attempt 1 --verdict [PASS | PASS_WITH_ACTIONS]`
 - For `PASS_WITH_ACTIONS`, include the exact named `--actions "a|b"` and optional `--resolution` values from this verdict.
+- Record QA effort for M4 (feeds the effort-per-scenario metric): `npm run evidence:effort -- --requirement [id] --minutes [actual minutes spent]`
 ```
 
 ## Required Cypress skills for this role

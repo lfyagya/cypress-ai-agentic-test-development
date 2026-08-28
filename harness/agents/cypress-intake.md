@@ -37,6 +37,39 @@ write via pre-tool hooks (shared scripts under `.claude/hooks/`). Codex has no h
 Codex-only team's real gate is `npm run verify` plus the pre-push hook. Say so rather than implying
 every tool has identical write-time protection.
 
+## Phase 0: Pattern Triage (existing repos only)
+
+Before writing any application-intelligence docs, determine what architecture the existing repo
+actually uses. Skip this phase for a brand-new repo with no tests.
+
+**Scan for signals** — grep and glob the test directory:
+
+| Signal | What to look for | Pattern it points to |
+|---|---|---|
+| `*.page.js / *.page.ts` files, imports from `pages/` | Page object classes | `pom` |
+| `*.feature` files, `step_definitions/` or `steps/` directory | Cucumber/Gherkin | `bdd-pom` |
+| `cy.*` custom commands, `cypress/support/commands/` | Command-first | `command-first` |
+| Helper classes injected via `test.extend` or base fixture | Helper-first | `helper-first` |
+| Parameterised tests driven by `*.json` / `*.csv` data files | Data-driven | `data-driven` |
+| `*.actions.js` / `*.actions.ts` files | Command-first or helper-first (action variant) | note as `command-first` divergence |
+
+**Classify** — count how many spec files exhibit each signal:
+
+- **≥ 80% match one pattern** → declare that pattern. Record the count as `patternReason`.
+- **Mixed signals** → identify the majority pattern. List the minority as `patternDivergence` — these are violations to resolve under the declared rules, not exceptions to them.
+- **No clear majority** → list all signals found, ask the owner to decide, and do not proceed until the pattern is confirmed. Record the decision and who made it.
+
+**Populate the profile** before composing:
+
+```json
+"pattern": "<detected pattern>",
+"patternReason": "<e.g. '12 of 14 spec files use cy.* commands from support/commands/ — command-first confirmed'>",
+"patternDivergence": ["<e.g. '2 specs contain hardcoded selectors — SELECTOR rule will block on next commit'>"]
+```
+
+Then run `npm run harness:compose && npm run harness:sync`. The composed config's rule set will
+reflect the detected pattern — verify with `npm run harness:check`.
+
 ## Build order — context and requirements
 
 1. Create `docs/application-intelligence/project-context.md` from the project template. Record the

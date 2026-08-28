@@ -11,7 +11,12 @@
   "projectName": "<name written into harness.config.json project.name>",
   "repo": "<path or URL of the repo this composes into>",
 
+  "$pattern": "Declare the architecture the existing repo actually uses, not the one you wish it used. Run Phase 0 of the bootstrapper (Pattern Triage) to detect it from the repo before filling this in. Valid values: command-first (cy.* custom commands own all UI logic), helper-first (helper classes + fixtures), pom (page-object classes), bdd-pom (Gherkin features over page objects), data-driven (fixture/table-driven cases over a shared layer).",
   "pattern": "<command-first | helper-first | pom | bdd-pom | data-driven>",
+  "$patternReason": "Required when onboarding an existing repo. State the concrete signals that determined the pattern — e.g. '12 of 14 spec files import from pages/, confirming POM'. This is the audit trail that lets the next person understand why ARCH-BOUNDARY does or does not apply.",
+  "patternReason": "<evidence that determined the pattern — file signals, import patterns, respondent data>",
+  "$patternDivergence": "Optional. List aspects of the codebase that do not fit the declared pattern. These are violations to fix under the detected rules, not exceptions to the rules. Example: '3 spec files embed hardcoded selectors — SELECTOR rule will block these on next commit'.",
+  "patternDivergence": []
   "paths": {
     "testRoot": "<test root>",
     "configRoot": "<config root>",

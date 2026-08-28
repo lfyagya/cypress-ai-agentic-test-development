@@ -16,7 +16,9 @@ import {
   groupSourceTddPhases,
   isDocumentationPath,
   isTestPath,
+  snapshotRequirementDigests,
   transition,
+  validateRequirementDigests,
   validateRequirementLinks,
   validateTask,
 } from "./lib/task-protocol.mjs";
@@ -89,9 +91,7 @@ function requireId(args) {
 }
 
 function requirementRegistry(root = ROOT) {
-  return activeRequirementIds(
-    readJson(path.join(root, "evidence", "requirements.json")),
-  );
+  return readJson(path.join(root, "evidence", "requirements.json"));
 }
 
 function git(root, args) {
@@ -108,6 +108,10 @@ function commandNew(args) {
     requirements,
     proofMode: args["proof-mode"],
     noTestReason: typeof args.reason === "string" ? args.reason : "",
+    requirementDigests: snapshotRequirementDigests(
+      requirements,
+      requirementRegistry(),
+    ),
   });
   if (task.proofMode === "source-tdd") {
     if (typeof args["test-cmd"] !== "string" || !args["test-cmd"].trim()) {
@@ -123,7 +127,7 @@ function commandNew(args) {
           : "",
     };
   }
-  validateRequirementLinks(task, requirementRegistry());
+  validateRequirementLinks(task, activeRequirementIds(requirementRegistry()));
   if (fs.existsSync(taskFile(task.id)))
     throw new Error(`task already exists: ${task.id}`);
   saveTask(task);
@@ -349,7 +353,7 @@ function commandVerify(args) {
   if (task.status !== "claimed")
     throw new Error(`task ${task.id} must be claimed before verification`);
   if (typeof args.plan !== "string") throw new Error("--plan is required");
-  validateRequirementLinks(task, requirementRegistry());
+  validateRequirementDigests(task, requirementRegistry());
   const plan = taskArtifactFile(task, args.plan);
   const planApproval = approvalState(
     task,

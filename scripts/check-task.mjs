@@ -9,6 +9,7 @@ import {
   activeRequirementIds,
   approvalState,
   contentHash,
+  validateRequirementDigests,
   validateRequirementLinks,
   validateTask,
 } from "./lib/task-protocol.mjs";
@@ -46,6 +47,10 @@ try {
     activeRequirementIds(
       readJson(file(path.join("evidence", "requirements.json"))),
     ),
+  );
+  validateRequirementDigests(
+    task,
+    readJson(file(path.join("evidence", "requirements.json"))),
   );
   const plan = task.approvals?.plan;
   const planState = approvalState(

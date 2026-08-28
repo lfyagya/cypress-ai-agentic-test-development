@@ -142,19 +142,20 @@ Today's adapters violate this: Playwright names cached auth `storage-state-auth`
 `require-auth-command`. Same concern, two ids. For a project that migrates framework — **Laudio
 migrated Cypress → Playwright** — that means which rules applied changed silently.
 
-| Concern                                        | Tier   | Playwright rule                         | Cypress rule            |
-| ---------------------------------------------- | ------ | --------------------------------------- | ----------------------- |
-| `CRED` no credential literals                  | 0      | `no-credential-literal`                 | `no-credential-literal` |
-| `SMOKE-RO` smoke suites read-only              | 0      | `smoke-read-only`                       | `smoke-read-only`       |
-| `WAIT` no fixed-delay waits                    | 1      | `no-hard-wait`                          | `no-hard-wait`          |
-| `SELECTOR` no selector literals                | 1      | `no-hardcoded-selector`                 | `no-hardcoded-selector` |
-| `ROUTE` no route literals                      | 1      | `no-hardcoded-route`                    | `no-hardcoded-route`    |
-| `SEARCH-FIRST` search before creating an asset | 1      | `search-before-create`                  | `search-before-create`  |
-| `TRACE` one requirement id per test            | 1 ramp | `one-requirement-tag`                   | `one-requirement-tag`   |
-| `LOCATOR-PRIORITY` semantic locators first     | 1      | `locator-priority`                      | `locator-priority`      |
-| `LOCATOR-NARROW` filter before index           | 1      | `narrow-before-index`                   | `narrow-before-index`   |
-| `CACHED-AUTH` auth cached, not per-test        | 2      | `storage-state-auth`                    | `require-auth-command`  |
-| `ARCH-BOUNDARY` one UI abstraction owner       | 2      | `no-page-object`, `base-fixture-import` | `no-page-object`        |
+| Concern                                        | Tier   | Playwright rule                         | Cypress rule                  |
+| ---------------------------------------------- | ------ | --------------------------------------- | ----------------------------- |
+| `CRED` no credential literals                  | 0      | `no-credential-literal`                 | `no-credential-literal`       |
+| `SMOKE-RO` smoke suites read-only              | 0      | `smoke-read-only`                       | `smoke-read-only`             |
+| `WAIT` no fixed-delay waits                    | 1      | `no-hard-wait`                          | `no-hard-wait`                |
+| `SELECTOR` no selector literals                | 1      | `no-hardcoded-selector`                 | `no-hardcoded-selector`       |
+| `ROUTE` no route literals                      | 1      | `no-hardcoded-route`                    | `no-hardcoded-route`          |
+| `SEARCH-FIRST` search before creating an asset | 1      | `search-before-create`                  | `search-before-create`        |
+| `TRACE` one requirement id per test            | 1 ramp | `one-requirement-tag`                   | `one-requirement-tag`         |
+| `FOCUSED-QUARANTINED` focused/skip governance  | 1      | `focused-or-quarantined-test`           | `focused-or-quarantined-test` |
+| `LOCATOR-PRIORITY` semantic locators first     | 1      | `locator-priority`                      | `locator-priority`            |
+| `LOCATOR-NARROW` filter before index           | 1      | `narrow-before-index`                   | `narrow-before-index`         |
+| `CACHED-AUTH` auth cached, not per-test        | 2      | `storage-state-auth`                    | `require-auth-command`        |
+| `ARCH-BOUNDARY` one UI abstraction owner       | 2      | `no-page-object`, `base-fixture-import` | `no-page-object`              |
 
 **Both cells were once `missing` on the Cypress side.** Closed during P1b: the policy was already in that adapter's `qa-automation-foundations.md`, word for word, and its gate already deducted 10 points for a structural locator where a semantic one existed — but neither concern was declared in the rule table. So the generated instruction tables under-reported what the gate would mark down. The inverse of the usual defect: not declared-but-unenforced, but _enforced-but-undeclared_.
 
@@ -164,7 +165,7 @@ migrated Cypress → Playwright** — that means which rules applied changed sil
 mechanism. The engine must reject a profile that tries.
 
 **Tier 1 · Universal quality.** `WAIT` · `SELECTOR` · `ROUTE` · `SEARCH-FIRST` · `TRACE` ·
-`LOCATOR-PRIORITY` · `LOCATOR-NARROW`. Default `block`. A project may downgrade to `review` **only
+`FOCUSED-QUARANTINED` · `LOCATOR-PRIORITY` · `LOCATOR-NARROW`. Default `block`. A project may downgrade to `review` **only
 with a recorded reason in its profile**. Never `off`. `review` means the read-only gate still scores
 it; the write is not refused.
 

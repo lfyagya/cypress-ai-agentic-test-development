@@ -10,6 +10,22 @@ The task record is coordination metadata, not a replacement for product intent, 
 native runner evidence. Every task references one or more active ids in
 `evidence/requirements.json`; it never copies acceptance criteria into a second document.
 
+## Requirement approval
+
+An agent may propose a requirement, but a product or domain owner decides whether to mark it `active`.
+Before that change, review the source link, observable outcome, acceptance criteria, preconditions,
+tier, and environment mutation rule. The harness does not depend on a forge, tracker, or administrator
+setting to preserve that decision.
+
+`new` snapshots a SHA-256 digest of each active requirement's id, source, outcome, criteria,
+preconditions, and test classification. `verify` and `task:check` reject a task if any of those facts
+change. Create a new task after a material requirement change; do not update its stored digest.
+
+The portable enforcement path is local: `new` records the requirement fingerprint, `verify` checks it
+before writing `verifiedCommit`, and `task:check` checks it again before a task is accepted. CI or a
+code-hosting rule may run the same command as an optional backstop, but task integrity never depends on
+either one.
+
 ```
 queued → claimed → verified → landed
 ```

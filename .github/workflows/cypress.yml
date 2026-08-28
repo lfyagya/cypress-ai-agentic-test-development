@@ -141,11 +141,28 @@ jobs:
           password:process.env.CYPRESS_PASSWORD,
           authUrl:process.env.CYPRESS_AUTH_URL}, null, 2))"
       - name: Run E2E tests
+        id: e2e
         run: npm run cy:run:e2e
         env:
           CYPRESS_configFile: ${{ inputs.environment || 'qa' }}
           CYPRESS_PROJECT_ID: ${{ secrets.CYPRESS_PROJECT_ID }}
           CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+      - name: Record first-attempt CI outcome for M2
+        if: always() && github.run_attempt == 1
+        env:
+          TEST_OUTCOME: ${{ steps.e2e.outcome }}
+          TRIGGER: ${{ github.event_name == 'pull_request' && 'pr' || (github.event_name == 'push' && 'push' || 'manual') }}
+        run: |
+          case "$TEST_OUTCOME" in
+            success) CLASS="" ; RESULT="passed" ;;
+            failure) CLASS="" ; RESULT="failed" ;;
+            *)       CLASS="--failure-class ENV" ; RESULT="failed" ;;
+          esac
+          node scripts/record-evidence.mjs ci \
+            --pipeline "${{ github.run_id }}-e2e" \
+            --trigger "$TRIGGER" \
+            --attempt "${{ github.run_attempt }}" \
+            --outcome "$RESULT" $CLASS
       - name: Build machine evidence
         if: always()
         run: npm run evidence:build

@@ -34,13 +34,18 @@ the read-only gate must never append its own evidence. Output no append command 
 
 ## Phase 1: Architecture Compliance
 
-- [ ] No `*.actions.js` files created
-- [ ] No page-object wrappers introduced
+Read `harness.config.json` → `project.pattern` before evaluating this phase. The ARCH-BOUNDARY
+checks (marked ‡) apply only to `command-first` and `helper-first` projects. A project declaring
+`pom`, `bdd-pom`, or `data-driven` is not violating the rule by using page objects — it is using
+its declared architecture.
+
 - [ ] No `cy.wait(number)` in changed files
 - [ ] No hardcoded selectors in `*.cy.js` or `*.commands.js`
 - [ ] No hardcoded routes (except allowlisted `/`)
 - [ ] No duplicate command name registered in `commands.js`
 - [ ] No redundant config, command, or spec that duplicates existing ownership
+- [ ] ‡ No `*.actions.js` files created _(skip if `project.pattern` is `pom`, `bdd-pom`, or `data-driven`)_
+- [ ] ‡ No page-object wrappers introduced _(skip if `project.pattern` is `pom`, `bdd-pom`, or `data-driven`)_
 
 **Verdict if failed:** BLOCK
 
@@ -131,4 +136,5 @@ Phase 6: Environment Hygiene        — [PASS/FAIL]
 ### Evidence Append
 - Run after this response, once per accepted requirement: `npm run evidence:record -- gate --requirement [id] --attempt 1 --verdict [PASS | PASS_WITH_ACTIONS]`
 - For `PASS_WITH_ACTIONS`, include the exact named `--actions "a|b"` and optional `--resolution` values from this verdict.
+- Record QA effort for M4 (feeds the effort-per-scenario metric): `npm run evidence:effort -- --requirement [id] --minutes [actual minutes spent]`
 ```

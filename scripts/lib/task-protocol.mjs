@@ -8,15 +8,36 @@ export const PROOF_MODES = new Set([
 ]);
 export const TASK_STATES = new Set(["queued", "claimed", "verified", "landed"]);
 
+const REQUIREMENT_DIGEST_FIELDS = [
+  "id",
+  "module",
+  "title",
+  "acceptanceCriteria",
+  "preconditions",
+  "expectedOutcome",
+  "type",
+  "priority",
+  "tier",
+  "path",
+  "source",
+];
+
 export function contentHash(content) {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
 
-export function createTask({ id, requirements, proofMode, noTestReason = "" }) {
+export function createTask({
+  id,
+  requirements,
+  proofMode,
+  noTestReason = "",
+  requirementDigests = null,
+}) {
   const task = {
     version: TASK_VERSION,
     id,
     requirements: [...new Set(requirements)],
+    ...(requirementDigests ? { requirementDigests } : {}),
     proofMode,
     noTestReason,
     dependencies: [],
@@ -44,6 +65,28 @@ export function validateTask(task) {
   if (new Set(task.requirements).size !== task.requirements.length) {
     throw new Error("task requirement ids must be unique");
   }
+  if (task.requirementDigests !== undefined) {
+    if (
+      !task.requirementDigests ||
+      typeof task.requirementDigests !== "object" ||
+      Array.isArray(task.requirementDigests)
+    ) {
+      throw new Error("task requirementDigests must be an object");
+    }
+    const digestIds = Object.keys(task.requirementDigests).sort();
+    const requirementIds = [...task.requirements].sort();
+    if (
+      digestIds.length !== requirementIds.length ||
+      digestIds.some((id, index) => id !== requirementIds[index]) ||
+      digestIds.some(
+        (id) => !/^[0-9a-f]{64}$/i.test(task.requirementDigests[id]),
+      )
+    ) {
+      throw new Error(
+        "task requirementDigests must contain one SHA-256 digest per requirement",
+      );
+    }
+  }
   if (!PROOF_MODES.has(task.proofMode)) {
     throw new Error(`proofMode must be one of: ${[...PROOF_MODES].join(", ")}`);
   }
@@ -66,6 +109,12 @@ export function validateTask(task) {
   ) {
     throw new Error("verified tasks require a verification commit SHA");
   }
+  if (
+    new Set(["verified", "landed"]).has(task.status) &&
+    task.requirementDigests === undefined
+  ) {
+    throw new Error("verified tasks require requirement digests");
+  }
   if (!Array.isArray(task.dependencies)) {
     throw new Error("task dependencies must be an array");
   }
@@ -83,6 +132,59 @@ export function activeRequirementIds(registry) {
       .filter((requirement) => requirement.status === "active")
       .map((requirement) => requirement.id),
   );
+}
+
+export function requirementDigest(requirement) {
+  return contentHash(
+    JSON.stringify(
+      Object.fromEntries(
+        REQUIREMENT_DIGEST_FIELDS.map((field) => [
+          field,
+          requirement[field] ?? null,
+        ]),
+      ),
+    ),
+  );
+}
+
+function activeRequirementsById(registry) {
+  if (registry?.version !== 1 || !Array.isArray(registry.requirements)) {
+    throw new Error(
+      "evidence/requirements.json must contain version 1 and requirements[]",
+    );
+  }
+  return new Map(
+    registry.requirements
+      .filter((requirement) => requirement.status === "active")
+      .map((requirement) => [requirement.id, requirement]),
+  );
+}
+
+export function snapshotRequirementDigests(requirements, registry) {
+  const active = activeRequirementsById(registry);
+  const unknown = requirements.filter((id) => !active.has(id));
+  if (unknown.length > 0) {
+    throw new Error(
+      `task references inactive or unknown requirement id(s): ${unknown.join(", ")}`,
+    );
+  }
+  return Object.fromEntries(
+    requirements.map((id) => [id, requirementDigest(active.get(id))]),
+  );
+}
+
+export function validateRequirementDigests(task, registry) {
+  const expected = snapshotRequirementDigests(task.requirements, registry);
+  if (!task.requirementDigests) {
+    throw new Error("task has no requirement digest snapshot");
+  }
+  for (const id of task.requirements) {
+    if (task.requirementDigests[id] !== expected[id]) {
+      throw new Error(
+        `requirement ${id} changed after task creation; create a new task from the approved requirement`,
+      );
+    }
+  }
 }
 
 export function validateRequirementLinks(task, activeIds) {
