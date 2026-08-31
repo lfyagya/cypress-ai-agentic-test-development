@@ -123,9 +123,20 @@ export function makeExtractToolChange(writeToolNames = DEFAULT_WRITE_TOOLS) {
       }
     }
 
+    // Cursor afterFileEdit puts file_path on the event, not inside tool_input, and has no
+    // tool_name. Without those fallbacks the post-write hook scanned nothing.
     const filePath =
-      toolInput.file_path || toolInput.filePath || toolInput.path || "";
-    if (!filePath || !writeTools.has(toolName)) {
+      toolInput.file_path ||
+      toolInput.filePath ||
+      toolInput.path ||
+      toolData?.file_path ||
+      toolData?.filePath ||
+      "";
+    // Cursor afterFileEdit is a file event, not a named write tool. The post-write hook
+    // passes readCurrent so it can scan the file already on disk.
+    const knownWrite = writeTools.has(toolName);
+    const cursorAfterEdit = !toolName && Boolean(filePath) && readCurrent;
+    if (!filePath || (!knownWrite && !cursorAfterEdit)) {
       return { filePath: "", content: "" };
     }
 
@@ -137,7 +148,11 @@ export function makeExtractToolChange(writeToolNames = DEFAULT_WRITE_TOOLS) {
     }
 
     if (toolName === "Write") {
-      return { filePath, content: toolInput.content || toolInput.text || "" };
+      // Cursor Write uses `contents`; Claude/Copilot use `content` or `text`.
+      return {
+        filePath,
+        content: toolInput.contents || toolInput.content || toolInput.text || "",
+      };
     }
 
     const replacement =
