@@ -27,8 +27,8 @@ on:
   workflow_dispatch:
     inputs:
       task_id:
-        description: Verified task id
-        required: true
+        description: Verified task id (optional; only for task/* work)
+        required: false
         type: string
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
       - run: npm ci
 
       - name: Verify task manifest
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'task/')
+        if: ${{ inputs.task_id != '' || startsWith(github.head_ref, 'task/') || startsWith(github.ref_name, 'task/') }}
         run: npm run task:check -- --id "${{ inputs.task_id }}"
 
       - name: Verify harness projections

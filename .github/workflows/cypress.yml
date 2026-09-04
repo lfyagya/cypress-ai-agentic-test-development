@@ -20,8 +20,8 @@ on:
         type: choice
         options: [smoke, e2e, all]
       task_id:
-        description: Verified task id
-        required: true
+        description: Verified task id (optional; only for task/* work)
+        required: false
         type: string
 
 env:
@@ -39,7 +39,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Verify task manifest
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'task/'))
+        if: ${{ inputs.task_id != '' || startsWith(github.head_ref, 'task/') || startsWith(github.ref_name, 'task/') }}
         run: npm run task:check -- --id "${{ inputs.task_id }}"
       - name: Write runtime configuration
         # BASE_URL is a non-secret public target for this project (Automation Exercise). A repo
