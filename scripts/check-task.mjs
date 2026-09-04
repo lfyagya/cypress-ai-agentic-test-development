@@ -16,11 +16,25 @@ import {
 const ROOT = process.env.HARNESS_TASK_ROOT
   ? path.resolve(process.env.HARNESS_TASK_ROOT)
   : path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const args = parseArgs(process.argv.slice(2));
-const branch = process.env.GITHUB_HEAD_REF ?? process.env.GIT_BRANCH ?? "";
-const id = args.id ?? (branch.startsWith("task/") ? branch.slice(5) : "");
 const git = (args) =>
   execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
+
+/**
+ * Resolve the task id from an explicit `--id` or a `task/<ID>` branch.
+ *
+ * `--id ""` (GitHub Actions when `inputs.task_id` is unset) and a bare `--id`
+ * boolean must not win over the branch. `??` keeps `true` and `""`, which made
+ * CI look up `evidence/tasks/true.json` instead of `task/FOO`.
+ */
+export function resolveTaskId(
+  args,
+  env = process.env,
+  branch = env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || env.GIT_BRANCH || "",
+) {
+  const explicit = typeof args.id === "string" ? args.id.trim() : "";
+  if (explicit) return explicit;
+  return branch.startsWith("task/") ? branch.slice(5) : "";
+}
 
 function file(relative) {
   if (!relative || path.isAbsolute(relative))
@@ -35,7 +49,9 @@ function file(relative) {
   return absolute;
 }
 
-try {
+function main(argv = process.argv.slice(2), env = process.env) {
+  const args = parseArgs(argv);
+  const id = resolveTaskId(args, env);
   if (!id) throw new Error("--id is required (or use a task/<ID> branch)");
   const task = readJson(file(path.join("evidence", "tasks", `${id}.json`)));
   validateTask(task);
@@ -78,7 +94,16 @@ try {
     );
   }
   console.log(`[task] ${id} is verified and branch-visible`);
-} catch (error) {
-  console.error(`[task] ${error.message}`);
-  process.exitCode = 1;
+}
+
+const isMain =
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  try {
+    main();
+  } catch (error) {
+    console.error(`[task] ${error.message}`);
+    process.exitCode = 1;
+  }
 }
