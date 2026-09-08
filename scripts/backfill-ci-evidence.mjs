@@ -54,6 +54,27 @@ export function classify(run) {
   };
 }
 
+/**
+ * M2 counts attempt 1 only. `gh run list` (and an unscoped `gh run view`) report the
+ * *latest* attempt: after a green retry the list conclusion is "success" even when
+ * attempt 1 failed. Merging that conclusion with a guessed `runAttempt: 1` launders a
+ * first-pass failure into a pass — the exact M2 failure the in-workflow recorder
+ * exists to prevent.
+ *
+ * Hydrate from `gh run view --attempt 1`. If that view is unavailable, skip the run
+ * rather than inventing attempt 1 or empty jobs (empty jobs would mark a real failure
+ * as ENV and drop it from M2).
+ */
+export function firstAttemptRun(listRun, attempt1View) {
+  if (!attempt1View || !attempt1View.conclusion) return null;
+  return {
+    ...listRun,
+    conclusion: attempt1View.conclusion,
+    jobs: attempt1View.jobs ?? [],
+    runAttempt: 1,
+  };
+}
+
 function fetchRuns(workflow, limit) {
   const listArgs = [
     "run",
@@ -69,18 +90,23 @@ function fetchRuns(workflow, limit) {
   );
 
   // run list omits per-job steps, and steps are how we tell "never started" from "tests failed".
+  // Always pin --attempt 1: an unscoped view returns the latest retry.
   return runs.map((run) => {
     try {
       const detail = JSON.parse(
-        gh(["run", "view", String(run.databaseId), "--json", "jobs,attempt"]),
+        gh([
+          "run",
+          "view",
+          String(run.databaseId),
+          "--attempt",
+          "1",
+          "--json",
+          "jobs,attempt,conclusion",
+        ]),
       );
-      return {
-        ...run,
-        jobs: detail.jobs ?? [],
-        runAttempt: detail.attempt ?? 1,
-      };
+      return firstAttemptRun(run, detail);
     } catch {
-      return { ...run, jobs: [], runAttempt: 1 };
+      return null;
     }
   });
 }
@@ -105,6 +131,10 @@ if (isMain) {
     let ignored = 0;
 
     for (const run of runs) {
+      if (!run) {
+        ignored += 1;
+        continue;
+      }
       const entry = classify(run);
       if (!entry) {
         ignored += 1;
@@ -129,7 +159,8 @@ if (isMain) {
     }
 
     console.log(
-      `[backfill] ${added} recorded, ${skipped} already present, ${ignored} unmodelled event(s)` +
+      `[backfill] ${added} recorded, ${skipped} already present, ${ignored} skipped ` +
+        `(unmodelled event or unavailable first-attempt view)` +
         `${args["dry-run"] ? " (dry run — nothing written)" : ""}`,
     );
   } catch (error) {
