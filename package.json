@@ -47,7 +47,7 @@
     "evidence:record": "node scripts/record-evidence.mjs",
     "evidence:effort": "node scripts/record-evidence.mjs effort",
     "evidence:backfill": "node scripts/backfill-ci-evidence.mjs --workflow cypress.yml",
-    "evidence:test": "node scripts/test-evidence.mjs && node scripts/test-record-evidence.mjs && node scripts/test-backfill-ci-evidence.mjs && node scripts/test-evidence-ledger-flow.mjs",
+    "evidence:test": "node scripts/test-evidence.mjs && node scripts/test-record-evidence.mjs && node scripts/test-backfill-ci-evidence.mjs && node scripts/test-evidence-ledger-flow.mjs && node scripts/test-check-task.mjs",
     "pretest": "npm run lint",
     "test": "npm run cy:run",
     "test:smoke": "npm run cy:run:smoke",

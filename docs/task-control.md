@@ -82,8 +82,10 @@ worktree. Task records live at `evidence/tasks/<id>.json`.
    node scripts/task-control.mjs land --id TASK-001 --merge <merged-commit-sha>
    ```
 
-CI runs `npm run task:check`. PRs use a `task/TASK-001` branch so the task id is unambiguous; a
-manual workflow supplies the same id explicitly.
+CI runs `npm run task:check` only when a task id is present: a `task/TASK-001` branch, or an
+explicit `task_id` on a manual workflow. Regular smoke or rules runs skip the check — task
+control is optional. `scripts/check-task.mjs` treats an empty `--id` as missing so GitHub
+Actions `--id "${{ inputs.task_id }}"` still falls back to the branch name.
 
 ## Proof standard
 

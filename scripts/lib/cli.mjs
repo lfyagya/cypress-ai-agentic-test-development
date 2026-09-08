@@ -24,7 +24,10 @@ export function parseArgs(tokens) {
     if (!tokens[i].startsWith("--")) continue;
     const key = tokens[i].slice(2);
     const next = tokens[i + 1];
-    if (!next || next.startsWith("--")) {
+    // Empty string is an explicit value (GitHub Actions `--id "${{ inputs.task_id }}"`
+    // expands to `--id ""` when the input is unset). Treating it as missing used to
+    // set the flag to `true`, so callers looked up `evidence/tasks/true.json`.
+    if (next === undefined || next.startsWith("--")) {
       args[key] = true;
       continue;
     }
