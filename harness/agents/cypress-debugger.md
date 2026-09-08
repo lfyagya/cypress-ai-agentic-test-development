@@ -14,6 +14,74 @@ If a Cypress Cloud run URL is available:
 2. Capture Test Replay links and attempt patterns
 3. Use cloud evidence to narrow the failure category before opening files
 
+### Step 0b — Live Session Inspection (`cypress tap`)
+
+If the failure reproduces in open mode, drive a live session from the terminal instead of guessing
+from a report. Ships with Cypress (no install) but requires **v15.21.0+**, a Chromium-based browser
+(Chrome, Chromium, Edge, Electron), and a running `cypress open` session in this project directory.
+Not available for headless `cypress run`.
+
+```bash
+npx cypress open --e2e --browser=chrome     # separate terminal, leave running
+npx cypress tap sessions                    # confirm the session is reachable + supported
+npx cypress tap specs                       # project-relative paths, newest first
+npx cypress tap run cypress/e2e/<spec>.cy.js
+```
+
+`run` returns immediately — it requests the spec, it does not wait. Poll `status`:
+
+```bash
+npx cypress tap status --json
+```
+
+Stages: `not connected`, `browser not selected`, `spec not selected`, `loading`, `running`,
+`passed`, `failed`. Branch on the `status` field, not the exit code — it exits 0 for any
+determinable stage.
+
+**Rerun trap:** after `run`, the *previous* spec's verdict stays visible until the new one begins.
+Read `startedAt` before running, and only trust a `passed`/`failed` whose `startedAt` differs.
+`loading` persists for as long as the spec takes to build, so the poller needs its own timeout.
+
+Then read the failure:
+
+```bash
+npx cypress tap reporter                    # spec overview — this is where test IDs come from
+npx cypress tap reporter --test-id <id>     # one test: command log, hooks, routes, failure output
+npx cypress tap reporter --test-id <id> --attempt 1   # an earlier retry (1-based, defaults to latest)
+npx cypress tap command --test-id <id> --command-id <n>   # one row: console props + pinnable snapshots
+```
+
+`--command-id` is a command-log row number, an `e`-prefixed event id, or hook-qualified (`h1:3`).
+
+To inspect the app as it was when a command ran, pin its snapshot first — `dom`/`aria`/`inspect`
+read the live frame, so without a pin they read the *current* state, not the failure moment:
+
+```bash
+npx cypress tap pin --test-id <id> --command-id <n>    # --at before|after|<1-based> selects the snapshot
+npx cypress tap dom --selector '<sel>'                 # defaults to body; --selector html for the document
+npx cypress tap inspect --selector '<sel>'             # tag, attrs, computed styles, box model, a11y node
+npx cypress tap aria --selector '<sel>'                # role/name/state subtree; defaults to body
+npx cypress tap pin --clear                            # ALWAYS release — restores the pre-pin app state
+```
+
+`--selector` must match exactly one element. On multiple matches nothing is read: the command
+returns a numbered list of up to 10 unique selectors — re-run with `--at <0-based index>` or a
+tighter selector. That is not a failure, it is the disambiguation path.
+
+Caps: `dom --max-chars` (default 30000), `aria --max-nodes` (default 200). `--json` on any command
+for parseable output. `--session <pid>` when `sessions` lists more than one.
+
+Use it to answer, with evidence rather than inference:
+
+- `SELECTOR_STALE` — `pin` the failing `cy.get()`, then `dom`/`inspect` to see what the selector
+  actually matched at that moment
+- `TIMING` / `INTERCEPT_ORDER` — read command-log ordering and the routes table in `reporter`
+- `ASSERTION_WRONG` — `inspect` the element's real value instead of re-reading the spec
+- Retry-only failures — compare `--attempt 1` against the latest attempt
+
+Findings from `tap` are evidence for the **Evidence** section of the output — the fix still lands in
+the config constant or command layer per the Fix Rules below.
+
 ### Step 1 — Classify the Failure
 
 | Category             | Symptoms                                         |
