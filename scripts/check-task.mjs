@@ -28,7 +28,10 @@ const ROOT = process.env.HARNESS_TASK_ROOT
 export function resolveTaskId(
   args,
   env = process.env,
-  branch = env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || env.GIT_BRANCH || "",
+  branch = (env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || env.GIT_BRANCH || "").replace(
+    /^(refs\/heads\/|origin\/)/,
+    "",
+  ),
 ) {
   const explicit = typeof args.id === "string" ? args.id.trim() : "";
   if (explicit) return explicit;
@@ -56,7 +59,7 @@ export function changedFilesSince(verifiedCommit, git) {
 }
 
 export function unverifiedFiles(changed, allowed) {
-  return changed.filter((file) => file && !allowed.has(file));
+  return changed.filter((file) => !allowed.has(file));
 }
 
 function file(relative, root = ROOT) {
@@ -76,7 +79,7 @@ export function checkTask({
   id,
   root = ROOT,
   git = (args) =>
-    execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim(),
+    execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim(),
 } = {}) {
   if (!id) throw new Error("--id is required (or use a task/<ID> branch)");
   const task = readJson(file(path.join("evidence", "tasks", `${id}.json`), root));
