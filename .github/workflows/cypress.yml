@@ -33,6 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # task:check diffs task.verifiedCommit..HEAD. The documented flow
+          # commits the verified manifest AFTER verify, so that SHA is a
+          # parent of HEAD. Default fetch-depth: 1 cannot see it and the
+          # job dies before tests run.
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -117,6 +123,8 @@ jobs:
        (inputs.test_scope == 'e2e' || inputs.test_scope == 'all'))
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}

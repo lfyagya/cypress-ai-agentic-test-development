@@ -38,6 +38,11 @@ assert.match(workflow, /success\) CLASS="" ; RESULT="passed"/);
 assert.match(workflow, /failure\) CLASS="" ; RESULT="failed"/);
 assert.match(workflow, /\*\)\s+CLASS="--failure-class ENV" ; RESULT="failed"/);
 assert.match(workflow, /--attempt "\$\{\{ github\.run_attempt \}\}"/);
+assert.match(
+  workflow,
+  /uses: actions\/checkout@v4\n(?:[ \t]+with:\n(?:[ \t]+#[^\n]*\n)*[ \t]+fetch-depth: 0\n)/,
+  "smoke checkout must fetch full history so task:check can see verifiedCommit",
+);
 
 console.log(
   "[evidence:ledger:test] Cypress gate, CI, and effort append wiring passed.",
