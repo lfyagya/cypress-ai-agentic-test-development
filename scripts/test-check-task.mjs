@@ -103,7 +103,7 @@ const invoked = spawnSync(
 assert.notEqual(invoked.status, 0, "missing FOO task must fail");
 assert.match(
   invoked.stderr,
-  /evidence\/tasks\/FOO\.json/,
+  /evidence[/\\]tasks[/\\]FOO\.json/,
   "empty --id on task/FOO must look up FOO.json, not true.json",
 );
 assert.doesNotMatch(

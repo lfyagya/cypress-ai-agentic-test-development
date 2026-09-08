@@ -53,13 +53,13 @@ assert.match(cypressWorkflow, /pull_request:\s*\n\s+branches: \[main\]/);
 assert.match(cypressWorkflow, /uses: actions\/upload-artifact@v6/);
 assert.match(
   cypressWorkflow,
-  /if: github\.event_name == 'workflow_dispatch' \|\| \(github\.event_name == 'pull_request' && startsWith\(github\.head_ref, 'task\/'\)\)/,
+  /if: \$\{\{ inputs\.task_id != '' \|\| startsWith\(github\.head_ref, 'task\/'\) \|\| startsWith\(github\.ref_name, 'task\/'\) \}\}/,
   "Cypress PRs must not require a manual task_id unless they use a task branch",
 );
 assert.match(rulesWorkflow, /pull_request:\s*\n\s+paths:/);
 assert.match(
   rulesWorkflow,
-  /if: github\.event_name == 'workflow_dispatch' \|\| startsWith\(github\.head_ref, 'task\/'\)/,
+  /if: \$\{\{ inputs\.task_id != '' \|\| startsWith\(github\.head_ref, 'task\/'\) \|\| startsWith\(github\.ref_name, 'task\/'\) \}\}/,
   "rules PRs must not require a manual task_id unless they use a task branch",
 );
 
