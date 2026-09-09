@@ -116,6 +116,16 @@
       "message": "Write request in smoke suite. Smoke tests must remain read-only."
     },
     {
+      "id": "no-sql-literal",
+      "concern": "QUERY",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "a SQL literal in a spec or command",
+      "instead": "a frozen entry from cypress/configs/db/** passed to cy.dbQuery()",
+      "why": "A query is the datastore contract. One schema change should mean one config edit, not a grep across specs.",
+      "message": "Hardcoded SQL. Move the query to cypress/configs/db/** and call cy.dbQuery(ENTRY, params)."
+    },
+    {
       "id": "focused-or-quarantined-test",
       "concern": "FOCUSED-QUARANTINED",
       "severity": "block",

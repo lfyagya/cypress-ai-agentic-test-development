@@ -315,4 +315,26 @@ export const rules = [
     appliesTo: (p) => SMOKE_SPEC_RE.test(p),
     pattern: /\bmethod\s*:\s*['"](POST|PUT|PATCH|DELETE)['"]/gi,
   },
+  {
+    // SMOKE-RO is layer-agnostic: a smoke suite that writes to the datastore breaks the same trust
+    // boundary as one that POSTs, and on a shared environment it is worse — an HTTP write is at
+    // least mediated by the application's own rules. Same Tier 0 concern, same rule, wider net.
+    ruleId: "smoke-read-only",
+    fallback:
+      "Datastore write in smoke suite. Smoke tests must remain read-only at every layer.",
+    appliesTo: (p) => SMOKE_SPEC_RE.test(p),
+    pattern:
+      /\b(INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|TRUNCATE|DROP\s+(TABLE|DATABASE|SCHEMA)|ALTER\s+TABLE)\b/gi,
+  },
+  {
+    // A query is the datastore's contract, exactly as a route is the HTTP contract. Matching the
+    // shape of a statement rather than the word SELECT alone keeps prose and column names from
+    // tripping it: the literal has to look like an actual query.
+    ruleId: "no-sql-literal",
+    fallback:
+      "Hardcoded SQL. Move the query to cypress/configs/db/** and call cy.dbQuery(ENTRY, params).",
+    appliesTo: (p) => SPEC_OR_COMMANDS_RE.test(p),
+    pattern:
+      /['"`][^'"`]*\b(SELECT\s+[\w*,\s.]+\s+FROM|INSERT\s+INTO|UPDATE\s+\w+\s+SET|DELETE\s+FROM|TRUNCATE\s+TABLE)\b[^'"`]*['"`]/gi,
+  },
 ];

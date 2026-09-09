@@ -12,6 +12,15 @@ const REQUIREMENT_VALUES = {
   tier: new Set(["smoke", "e2e", "ddt"]),
 };
 
+// Where in the stack a requirement is verified. `tier` is the risk/speed axis; this is the
+// stack-depth axis, and they are independent — a P0 smoke check can assert at any layer.
+//
+// Optional by design. A project with no datastore access declares nothing and loses nothing; the
+// field only starts paying when a requirement spans layers, because "the UI says 6, the API says 6,
+// the row count is 6" is the assertion no single-layer test can make. Requiring it would invalidate
+// every existing consumer registry for a distinction most of them cannot draw.
+const LAYERS = new Set(["ui", "api", "service", "db"]);
+
 function writeJson(file, value) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
@@ -68,6 +77,28 @@ function validateRequirements(registry) {
         if (!allowed.has(requirement[field])) {
           throw new Error(
             `Active requirement ${requirement.id} has invalid ${field}: ${requirement[field]}`,
+          );
+        }
+      }
+      // Optional, but wrong beats absent: a misspelled layer would report as coverage at a layer
+      // nothing tests.
+      if (requirement.layers !== undefined) {
+        const layers = requirement.layers;
+        if (!Array.isArray(layers) || layers.length === 0) {
+          throw new Error(
+            `Active requirement ${requirement.id} declares layers but not as a non-empty array`,
+          );
+        }
+        const unknown = layers.filter((layer) => !LAYERS.has(layer));
+        if (unknown.length > 0) {
+          throw new Error(
+            `Active requirement ${requirement.id} has unknown layer(s): ${unknown.join(", ")}. ` +
+              `Known layers: ${[...LAYERS].join(", ")}`,
+          );
+        }
+        if (new Set(layers).size !== layers.length) {
+          throw new Error(
+            `Active requirement ${requirement.id} repeats a layer: ${layers.join(", ")}`,
           );
         }
       }
@@ -303,6 +334,9 @@ export function buildEvidence({
       requirement: requirement.id,
       module: requirement.module,
       priority: requirement.priority,
+      // null, not [], when undeclared: an empty array reads as "verified at no layer", which is a
+      // different and much worse claim than "this project does not track layers".
+      layers: requirement.layers ?? null,
       tests: mapped.map((test) => ({
         title: test.title,
         file: test.file,
@@ -311,8 +345,28 @@ export function buildEvidence({
       passing: mapped.some((test) => test.status === "passed"),
     };
   });
+
+  // Per-layer rollup. Only counts requirements that declared layers, so a project that tracks none
+  // reports an empty object rather than a fictional zero for every layer.
+  const byLayer = {};
+  for (const entry of coverage) {
+    for (const layer of entry.layers ?? []) {
+      byLayer[layer] ??= { total: 0, passing: 0 };
+      byLayer[layer].total += 1;
+      if (entry.passing) byLayer[layer].passing += 1;
+    }
+  }
+  const declared = coverage.filter((entry) => entry.layers !== null).length;
+
   writeJson(path.join(evidenceRoot, "coverage-computed.json"), {
     runId: resolvedRunId,
+    layers: {
+      declaring: declared,
+      of: coverage.length,
+      byLayer,
+      crossLayer: coverage.filter((entry) => (entry.layers?.length ?? 0) > 1)
+        .length,
+    },
     requirements: coverage,
   });
 

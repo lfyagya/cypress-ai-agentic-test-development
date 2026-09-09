@@ -9,12 +9,12 @@ model.
 
 All live under `.claude/hooks/` and are shared by every tool that supports write-time hooks.
 
-| Hook file | Fires on | Effect |
-| --- | --- | --- |
-| `prompt-duplication-guard.mjs` | prompt submit | Reminds the agent to search before creating a new config, command, or spec |
-| `pre-validate-cypress-rules.mjs` | before Edit/Write | Scans proposed content and **blocks** the write on a violation (exit 2) |
-| `validate-cypress-rules.mjs` | after Edit/Write; also CI via `--all` / `--base-ref` | Safety-net scan; CI runs the same scanner on the tree |
-| `session-end-reminder.mjs` | session stop | If Cypress files changed, prints the pre-merge checklist |
+| Hook file                        | Fires on                                             | Effect                                                                     |
+| -------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| `prompt-duplication-guard.mjs`   | prompt submit                                        | Reminds the agent to search before creating a new config, command, or spec |
+| `pre-validate-cypress-rules.mjs` | before Edit/Write                                    | Scans proposed content and **blocks** the write on a violation (exit 2)    |
+| `validate-cypress-rules.mjs`     | after Edit/Write; also CI via `--all` / `--base-ref` | Safety-net scan; CI runs the same scanner on the tree                      |
+| `session-end-reminder.mjs`       | session stop                                         | If Cypress files changed, prints the pre-merge checklist                   |
 
 The pre-write hook **blocks**; the post-write hook **warns**. The event-to-hook wiring is generated
 into each tool's settings by `npm run harness:sync` — never edit it by hand.

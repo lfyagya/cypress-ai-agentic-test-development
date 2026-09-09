@@ -1,0 +1,73 @@
+{
+  "$comment": "Expected gate outcomes for the graded rules. Diff a real gate run against this after any model or policy change. See README.md.",
+  "version": 1,
+  "recordedAgainst": {
+    "engineVersion": "0.1.4",
+    "date": "2026-09-09"
+  },
+  "fixtures": [
+    {
+      "rule": "locator-priority",
+      "polarity": "fail",
+      "file": "locator-priority/fail.cy.js",
+      "asIfPath": "cypress/tests/fixture/e2e/fixture-search.cy.js",
+      "expect": {
+        "finding": "locator-priority",
+        "deduction": "Structural locator where a semantic one exists",
+        "points": -10,
+        "verdict": "PASS_WITH_ACTIONS"
+      },
+      "why": "A CSS class is used for a control that exposes an accessible role and name, so contract level 1 was available."
+    },
+    {
+      "rule": "locator-priority",
+      "polarity": "pass",
+      "file": "locator-priority/pass.cy.js",
+      "asIfPath": "cypress/tests/fixture/e2e/fixture-search.cy.js",
+      "expect": { "finding": null, "verdict": "PASS" },
+      "why": "Field located by label, control by role and name — contract levels 1-2."
+    },
+    {
+      "rule": "narrow-before-index",
+      "polarity": "fail",
+      "file": "narrow-before-index/fail.cy.js",
+      "asIfPath": "cypress/tests/fixture/e2e/fixture-cart.cy.js",
+      "expect": {
+        "finding": "narrow-before-index",
+        "deduction": "Index used where a filter would disambiguate",
+        "points": -10,
+        "verdict": "PASS_WITH_ACTIONS"
+      },
+      "why": "`.first()` and `.eq(0)` select by position where card content could identify the element."
+    },
+    {
+      "rule": "narrow-before-index",
+      "polarity": "pass",
+      "file": "narrow-before-index/pass.cy.js",
+      "asIfPath": "cypress/tests/fixture/e2e/fixture-cart.cy.js",
+      "expect": { "finding": null, "verdict": "PASS" },
+      "why": "Disambiguated by content with cy.contains(selector, text) and scoped with .within()."
+    },
+    {
+      "rule": "search-before-create",
+      "polarity": "fail",
+      "file": "search-before-create/fail.js",
+      "asIfPath": "cypress/configs/ui/modules/cart/cart.ui.js",
+      "expect": {
+        "finding": "search-before-create",
+        "deduction": null,
+        "points": null,
+        "verdict": "BLOCK"
+      },
+      "why": "Redeclares `.product-image-wrapper` and `.productinfo p`, already owned by PRODUCTS_UI. Gate Phase 1 treats duplicate ownership as BLOCK, not a score deduction."
+    },
+    {
+      "rule": "search-before-create",
+      "polarity": "pass",
+      "file": "search-before-create/pass.js",
+      "asIfPath": "cypress/configs/ui/modules/cart/cart.ui.js",
+      "expect": { "finding": null, "verdict": "PASS" },
+      "why": "Reuses PRODUCTS_UI for values that already have an owner; declares only the new cart-specific hook."
+    }
+  ]
+}

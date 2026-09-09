@@ -25,6 +25,27 @@ const REQUIRED_BLOCKS = {
   strategy: ["auth", "testData", "credentialSource"],
 };
 
+// Datastore access is a project fact, not harness policy — the same reason `adapter` and `language`
+// live in the profile. The engine does not pick a driver or ship one; it records which the project
+// declared so the adapter can wire it and the rules can key on it.
+//
+// Optional: a project with no datastore access omits the block entirely and nothing changes. But a
+// block that IS present must be complete, because a half-declared datastore is how a suite ends up
+// pointing at the wrong database.
+const DATASTORE_DRIVERS = new Set([
+  "postgres",
+  "mysql",
+  "mssql",
+  "oracle",
+  "mongodb",
+  "none",
+]);
+// How tests reach the data layer. `direct` asserts what was actually persisted and needs a
+// least-privilege credential; `test-api` asks the service what it stored, which needs no credential
+// but verifies a report rather than the store; `both` seeds through the application's own API so
+// business rules run, then asserts the row directly.
+const DATASTORE_ACCESS = new Set(["direct", "test-api", "both", "none"]);
+
 function isPlaceholder(value) {
   if (value == null || String(value).trim() === "") return true;
   const t = String(value).trim();
@@ -81,6 +102,44 @@ function profileIssues(profile) {
   }
   if (!adaptersOn(profile.adapters)) {
     issues.push("profile.adapters must enable at least one AI tool");
+  }
+  issues.push(...datastoreIssues(profile.datastore));
+  return issues;
+}
+
+export function datastoreIssues(datastore) {
+  if (datastore === undefined) return [];
+  const issues = [];
+  if (!datastore || typeof datastore !== "object") {
+    return ["profile.datastore must be an object when present"];
+  }
+  if (!DATASTORE_DRIVERS.has(datastore.driver)) {
+    issues.push(
+      `profile.datastore.driver must be one of ${[...DATASTORE_DRIVERS].join(", ")} ` +
+        `(got ${JSON.stringify(datastore.driver)})`,
+    );
+  }
+  if (!DATASTORE_ACCESS.has(datastore.access)) {
+    issues.push(
+      `profile.datastore.access must be one of ${[...DATASTORE_ACCESS].join(", ")} ` +
+        `(got ${JSON.stringify(datastore.access)})`,
+    );
+  }
+  const reaches =
+    datastore.driver &&
+    datastore.driver !== "none" &&
+    datastore.access !== "none";
+  if (reaches && isPlaceholder(datastore.credentialSource)) {
+    issues.push(
+      "profile.datastore.credentialSource is required once a datastore is reachable — name the " +
+        "env var or secret holding a least-privilege connection string. Never the value itself.",
+    );
+  }
+  if (reaches && !datastore.readOnly && !datastore.writeApproval) {
+    issues.push(
+      "profile.datastore declares write-capable access with no writeApproval — record who approved " +
+        "tests writing to this datastore, or set readOnly: true.",
+    );
   }
   return issues;
 }

@@ -38,7 +38,7 @@ Stages: `not connected`, `browser not selected`, `spec not selected`, `loading`,
 `passed`, `failed`. Branch on the `status` field, not the exit code — it exits 0 for any
 determinable stage.
 
-**Rerun trap:** after `run`, the *previous* spec's verdict stays visible until the new one begins.
+**Rerun trap:** after `run`, the _previous_ spec's verdict stays visible until the new one begins.
 Read `startedAt` before running, and only trust a `passed`/`failed` whose `startedAt` differs.
 `loading` persists for as long as the spec takes to build, so the poller needs its own timeout.
 
@@ -54,7 +54,7 @@ npx cypress tap command --test-id <id> --command-id <n>   # one row: console pro
 `--command-id` is a command-log row number, an `e`-prefixed event id, or hook-qualified (`h1:3`).
 
 To inspect the app as it was when a command ran, pin its snapshot first — `dom`/`aria`/`inspect`
-read the live frame, so without a pin they read the *current* state, not the failure moment:
+read the live frame, so without a pin they read the _current_ state, not the failure moment:
 
 ```bash
 npx cypress tap pin --test-id <id> --command-id <n>    # --at before|after|<1-based> selects the snapshot

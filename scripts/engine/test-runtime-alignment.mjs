@@ -7,17 +7,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-  "..",
-);
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MINIMUM_MAJOR = 22;
 const CI_MAJOR = 24;
 
-const pkg = JSON.parse(
-  fs.readFileSync(path.join(root, "package.json"), "utf8"),
-);
+const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const engines = pkg.engines?.node;
 assert.ok(engines, "package.json must declare engines.node");
 assert.match(
@@ -46,9 +40,7 @@ for (const file of workflows) {
   assert.match(text, /uses: actions\/setup-node@v5/);
 }
 
-const [cypressWorkflow, rulesWorkflow] = workflows.map((file) =>
-  fs.readFileSync(file, "utf8"),
-);
+const [cypressWorkflow, rulesWorkflow] = workflows.map((file) => fs.readFileSync(file, "utf8"));
 assert.match(cypressWorkflow, /pull_request:\s*\n\s+branches: \[main\]/);
 assert.match(cypressWorkflow, /uses: actions\/upload-artifact@v6/);
 assert.match(

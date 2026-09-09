@@ -37,6 +37,14 @@ const SAMPLES = {
     'describe("cart", () => { it("works", () => { cy.log("x"); }); });',
   ],
   "smoke-read-only": [SMOKE, 'cy.request("POST", "/api/orders", {});'],
+  // A query is the datastore's contract and belongs in cypress/configs/db/**, for the same reason
+  // a route does. Note the sample is a command file, not a smoke spec: put write SQL in a smoke
+  // spec and smoke-read-only fires too, which would make this sample prove two rules and neither
+  // cleanly.
+  "no-sql-literal": [
+    COMMAND,
+    'const rows = db.query("SELECT id, total FROM orders WHERE id = 1");',
+  ],
   "focused-or-quarantined-test": [
     E2E,
     'beforeEach(() => { cy.ensureAuthenticated(); }); it.only("[REQ-1] cart", { tags: ["@REQ-1", "@regression", "@P0", "@e2e"] }, () => {});',
