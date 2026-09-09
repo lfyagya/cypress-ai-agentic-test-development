@@ -2,7 +2,7 @@
   "$comment": "Adapter baseline for cypress. Policy that is identical for every cypress project. Composed with a project profile to produce that project's harness.config.json. Edit policy here once; every project on this adapter inherits it.",
   "version": 1,
   "framework": "cypress",
-  "architecture": "Config \u2192 Commands \u2192 Tests",
+  "architecture": "Config → Commands → Tests",
   "pattern": "command-first",
   "paths": {
     "testRoot": "cypress",
@@ -72,7 +72,7 @@
       "severity": "block",
       "enforcement": "Hook + CI",
       "never": "*.actions.js files or page-object wrappers",
-      "instead": "custom cy.* commands \u2014 command-first only",
+      "instead": "custom cy.* commands — command-first only",
       "why": "Commands are the page methods; a second abstraction layer duplicates ownership.",
       "message": "Action class or page-object import. Command-first architecture forbids these dependencies."
     },
@@ -105,6 +105,16 @@
       "instead": "read-only assertions; put mutations in the e2e tier",
       "why": "Smoke runs against shared and production-like environments.",
       "message": "Write request in smoke suite. Smoke tests must remain read-only."
+    },
+    {
+      "id": "no-sql-literal",
+      "concern": "QUERY",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "a SQL literal in a spec or command",
+      "instead": "a frozen entry from cypress/configs/db/** passed to cy.dbQuery()",
+      "why": "A query is the datastore contract. One schema change should mean one config edit, not a grep across specs.",
+      "message": "Hardcoded SQL. Move the query to cypress/configs/db/** and call cy.dbQuery(ENTRY, params)."
     },
     {
       "id": "focused-or-quarantined-test",
@@ -142,7 +152,7 @@
       "severity": "review",
       "enforcement": "QA gate",
       "never": "a new config, command or spec without searching first",
-      "instead": "grep the literal selector/endpoint/route across configs and commands \u2014 search by value, not filename",
+      "instead": "grep the literal selector/endpoint/route across configs and commands — search by value, not filename",
       "why": "A filename check that finds nothing is not a value check that finds nothing. Duplicate owners are the most common review failure.",
       "message": "Search cypress/configs/** and cypress/support/commands/** by value before creating a new one."
     },
@@ -161,7 +171,7 @@
     {
       "name": "cypress-intake",
       "role": "INTAKE",
-      "description": "Derive verified project context and approved requirements, and capture observed selectors and routes into config constants \u2014 before any spec is written.",
+      "description": "Derive verified project context and approved requirements, and capture observed selectors and routes into config constants — before any spec is written.",
       "model": "sonnet",
       "tools": ["Read", "Write", "Edit", "Grep", "Glob", "Bash"],
       "when": "Start a new project or module, or turn unknown application behavior into context and config constants"
@@ -169,10 +179,10 @@
     {
       "name": "cypress-generator",
       "role": "BUILD",
-      "description": "Turns a requirement into a merge-ready Cypress module \u2014 UI config, routes, API config, commands, registration, and the spec.",
+      "description": "Turns a requirement into a merge-ready Cypress module — UI config, routes, API config, commands, registration, and the spec.",
       "model": "sonnet",
       "tools": ["Read", "Write", "Edit", "Grep", "Glob", "Bash"],
-      "when": "Build a module from a requirement id \u2014 config \u2192 commands \u2192 spec"
+      "when": "Build a module from a requirement id — config → commands → spec"
     },
     {
       "name": "cypress-debugger",
@@ -189,7 +199,7 @@
       "model": "opus",
       "permissionMode": "plan",
       "tools": ["Read", "Grep", "Glob"],
-      "when": "Evaluate supplied diff and verification evidence \u2014 PASS / PASS_WITH_ACTIONS / BLOCK",
+      "when": "Evaluate supplied diff and verification evidence — PASS / PASS_WITH_ACTIONS / BLOCK",
       "readOnlyRationale": "Read/search only by design: the gate cannot edit files or execute shell commands, so the builder never grades its own output."
     }
   ],

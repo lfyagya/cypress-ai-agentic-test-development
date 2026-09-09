@@ -32,16 +32,16 @@ Generated Claude and Copilot files are projections. They are never edited direct
 
 ## Phase contract
 
-| Phase    | Actor                  | Required input                   | Output                              | Blocking rule                               |
-| -------- | ---------------------- | -------------------------------- | ----------------------------------- | ------------------------------------------- |
+| Phase    | Actor                  | Required input                   | Output                                  | Blocking rule                               |
+| -------- | ---------------------- | -------------------------------- | --------------------------------------- | ------------------------------------------- |
 | INTAKE   | `cypress-intake`       | Authoritative sources            | Context, requirements, config constants | Unknown safety or behavior remains explicit |
-| SPECIFY  | Intake + owner         | Approved context                 | Active requirement registry         | No invented requirement or priority         |
-| BUILD    | `cypress-generator`    | One active requirement           | Config → Commands → Test            | Builder never grades itself                 |
-| GUARD    | Hooks + CI             | Proposed change                  | Deterministic allow/block           | Security and architecture fail closed       |
-| EVALUATE | `pre-merge-qa-gate`    | Diff + supplied command evidence | Verdict + per-test grade            | Read/search only                            |
-| EXECUTE  | Cypress                | Accepted tests and environment   | HTML + JSON report                  | Production smoke is read-only               |
-| DIAGNOSE | `cypress-debugger`   | Failure evidence                 | Root cause + bounded repair         | No weakened assertion or hidden failure     |
-| MEASURE  | `scripts/evidence.mjs` | Reporter JSON + registries       | Summary, coverage, metrics          | Missing evidence is `null`, never zero      |
+| SPECIFY  | Intake + owner         | Approved context                 | Active requirement registry             | No invented requirement or priority         |
+| BUILD    | `cypress-generator`    | One active requirement           | Config → Commands → Test                | Builder never grades itself                 |
+| GUARD    | Hooks + CI             | Proposed change                  | Deterministic allow/block               | Security and architecture fail closed       |
+| EVALUATE | `pre-merge-qa-gate`    | Diff + supplied command evidence | Verdict + per-test grade                | Read/search only                            |
+| EXECUTE  | Cypress                | Accepted tests and environment   | HTML + JSON report                      | Production smoke is read-only               |
+| DIAGNOSE | `cypress-debugger`     | Failure evidence                 | Root cause + bounded repair             | No weakened assertion or hidden failure     |
+| MEASURE  | `scripts/evidence.mjs` | Reporter JSON + registries       | Summary, coverage, metrics              | Missing evidence is `null`, never zero      |
 
 SHIP (opening the PR) and harness maintenance are not lifecycle agents; the parent workflow performs
 them directly.

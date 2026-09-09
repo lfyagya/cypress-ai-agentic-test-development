@@ -1,4 +1,4 @@
-# Test plan → `evidence/requirements.json`
+# Requirement authoring → `evidence/requirements.json`
 
 > One guide for planning requirements in this harness.
 > Template: [`_template/requirement.example.json`](_template/requirement.example.json)  
@@ -32,7 +32,7 @@ Read first:
 1. harness.config.json — composed project + rules (do not invent policy)
 2. docs/application-intelligence/ (project-context / module-context if present)
 3. docs/application-intelligence/_template/requirement.example.json — entry shape
-4. docs/application-intelligence/test-plan.md — this guide
+4. docs/application-intelligence/requirement-authoring-guide.md — this guide
 5. evidence/requirements.json — current registry
 6. docs/START-HERE.md §6 Step 2 — approval rules
 
@@ -74,11 +74,11 @@ Output when done:
 
 ## Status lifecycle
 
-| Status | BUILD allowed? |
-| ------ | -------------- |
-| `draft` | No |
-| `active` | Yes — one id at a time |
-| other / deferred | No until activated |
+| Status           | BUILD allowed?         |
+| ---------------- | ---------------------- |
+| `draft`          | No                     |
+| `active`         | Yes — one id at a time |
+| other / deferred | No until activated     |
 
 Never silently promote `draft` → `active`.
 
@@ -88,19 +88,19 @@ Never silently promote `draft` → `active`.
 
 Validated by `npm run evidence:build` / evidence scripts:
 
-| Field | Values |
-| ----- | ------ |
-| `id` | Unique string (e.g. `PAY-CHECKOUT-001`) |
-| `module` | Module slug |
-| `title` | Observable behavior |
-| `expectedOutcome` | What must be visible / true |
-| `source` | Ticket, spec, or module-context anchor |
-| `acceptanceCriteria` | Non-empty string array |
-| `preconditions` | Non-empty string array |
-| `type` | `SMOKE` \| `REGRESSION` |
-| `priority` | `P0` \| `P1` \| `P2` |
-| `tier` | `smoke` \| `e2e` \| `ddt` |
-| `status` | `draft` until approved, then `active` |
+| Field                | Values                                  |
+| -------------------- | --------------------------------------- |
+| `id`                 | Unique string (e.g. `PAY-CHECKOUT-001`) |
+| `module`             | Module slug                             |
+| `title`              | Observable behavior                     |
+| `expectedOutcome`    | What must be visible / true             |
+| `source`             | Ticket, spec, or module-context anchor  |
+| `acceptanceCriteria` | Non-empty string array                  |
+| `preconditions`      | Non-empty string array                  |
+| `type`               | `SMOKE` \| `REGRESSION`                 |
+| `priority`           | `P0` \| `P1` \| `P2`                    |
+| `tier`               | `smoke` \| `e2e` \| `ddt`               |
+| `status`             | `draft` until approved, then `active`   |
 
 Optional planning fields (ignored by evidence validation if present): `path`, notes in `source`, module-context links.
 
@@ -108,12 +108,12 @@ Optional planning fields (ignored by evidence validation if present): `path`, no
 
 ## Smoke vs regression
 
-| | SMOKE | REGRESSION |
-| --- | ----- | ---------- |
-| `type` | `SMOKE` | `REGRESSION` |
-| Typical tier | `smoke` | `e2e` / `ddt` |
-| Mutations | Prefer read-only | Synthetic + failure-safe cleanup before `active` |
-| Order | Automate P0 first | After P0 smoke baseline |
+|              | SMOKE             | REGRESSION                                       |
+| ------------ | ----------------- | ------------------------------------------------ |
+| `type`       | `SMOKE`           | `REGRESSION`                                     |
+| Typical tier | `smoke`           | `e2e` / `ddt`                                    |
+| Mutations    | Prefer read-only  | Synthetic + failure-safe cleanup before `active` |
+| Order        | Automate P0 first | After P0 smoke baseline                          |
 
 ---
 

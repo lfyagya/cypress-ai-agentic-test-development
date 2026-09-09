@@ -42,6 +42,8 @@ scripts/engine/test-config-paths-honest.mjs
 .claude/hooks/harness-config-gate.mjs
 .claude/hooks/rule-engine.mjs
 .claude/hooks/session-end-reminder.mjs
+docs/_template/test-automation-plan.md
+docs/backend-testing-coverage.md
 docs/harness-conformance-spec.md
 docs/harness-onboarding-runbook.md
 docs/task-control.md
@@ -68,8 +70,12 @@ scripts/engine/test-requirement-consistency.mjs
 scripts/evidence.mjs
 scripts/lib/cli.mjs
 scripts/lib/task-protocol.mjs
+scripts/plan-status.mjs
 scripts/record-evidence.mjs
 scripts/task-control.mjs
+scripts/test-backfill-ci-evidence.mjs
+scripts/test-check-task.mjs
 scripts/test-evidence.mjs
+scripts/test-plan-status.mjs
 scripts/test-record-evidence.mjs
 # END lf-qa-harness-os

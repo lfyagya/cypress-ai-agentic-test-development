@@ -236,6 +236,52 @@ try {
       }),
     /invalid type/,
   );
+
+  // Layers. Optional, so an undeclared registry must still build — that is every existing consumer.
+  const layerRoot = fixtureRoot();
+  roots.push(layerRoot);
+  const writeLayers = (layers) =>
+    fs.writeFileSync(
+      path.join(layerRoot, "evidence", "requirements.json"),
+      JSON.stringify({
+        version: 1,
+        requirements: [
+          layers === undefined ? requirement : { ...requirement, layers },
+        ],
+      }),
+    );
+  const build = () =>
+    buildEvidence({
+      root: layerRoot,
+      framework: "cypress",
+      reportPath: "missing.json",
+    });
+
+  writeLayers(undefined);
+  assert.doesNotThrow(
+    build,
+    "a registry that declares no layers must still build",
+  );
+
+  writeLayers(["ui", "api"]);
+  assert.doesNotThrow(build, "a cross-layer requirement must be accepted");
+
+  writeLayers(["ui", "dbb"]);
+  assert.throws(
+    build,
+    /unknown layer\(s\): dbb/,
+    "a misspelled layer must be rejected",
+  );
+
+  writeLayers([]);
+  assert.throws(
+    build,
+    /not as a non-empty array/,
+    "an empty layer list must be rejected",
+  );
+
+  writeLayers(["ui", "ui"]);
+  assert.throws(build, /repeats a layer/, "a repeated layer must be rejected");
 } finally {
   for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
 }
