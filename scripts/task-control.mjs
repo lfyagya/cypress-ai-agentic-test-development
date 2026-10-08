@@ -14,6 +14,7 @@ import {
   contentHash,
   createTask,
   dependenciesReady,
+  gateDocumentErrors,
   groupSourceTddPhases,
   isDocumentationPath,
   isTestPath,
@@ -363,20 +364,10 @@ function commandVerify(args) {
     fs.readFileSync(plan.absolute, "utf8"),
   );
   if (!planApproval.ok) throw new Error(planApproval.reason);
-  // Earlier gate documents, when approved, must be unchanged: editing a PRD or the cases after
-  // approval invalidates the work built on them.
-  for (const kind of ["prd", "test-cases"]) {
-    const approval = task.approvals?.[kind];
-    if (!approval) continue;
-    const document = taskArtifactFile(task, approval.path);
-    const state = approvalState(
-      task,
-      kind,
-      document.relative,
-      fs.readFileSync(document.absolute, "utf8"),
-    );
-    if (!state.ok) throw new Error(state.reason);
-  }
+  const gateErrors = gateDocumentErrors(task, (relative) =>
+    fs.readFileSync(taskArtifactFile(task, relative).absolute, "utf8"),
+  );
+  if (gateErrors.length) throw new Error(gateErrors.join("; "));
   if (task.proofMode === "automation-evidence") {
     if (!task.evidence)
       throw new Error(

@@ -79,11 +79,13 @@ worktree. Task records live at `evidence/tasks/<id>.json`.
    ```
 
    The delivery pipeline has four human gates, each recorded the same way under its own artifact
-   kind: `prd`, `plan` (the test plan), `test-cases`, and `verification`. `verify` requires the
-   `plan` approval, and re-checks the `prd` and `test-cases` documents when they were approved, so
-   editing either after approval blocks verification until it is approved again. Whether the `prd` and
-   `test-cases` approvals exist at all is not yet required by `verify`; the independent evaluator
-   checks that ordering.
+   kind: `prd`, `plan` (the test plan), `test-cases`, and `verification`. `verify` always requires the
+   `plan` approval. For an `automation-evidence` task (Cypress or Playwright work) it also requires
+   the `prd` and `test-cases` approvals, and every proof mode re-checks those two documents when they
+   were approved, so editing either after approval blocks verification until it is approved again.
+   `task:check` in CI applies the same checks after the approved documents are committed, and allows
+   those documents (and the plan) to be committed after the verification commit. `source-tdd` and
+   `no-test` tasks are not PRD-driven and do not need the two approvals.
 
 4. **Attach proof and verify.** The verifier checks the selected proof mode, then writes the task
    as `verified`.

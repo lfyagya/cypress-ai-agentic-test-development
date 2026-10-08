@@ -236,6 +236,31 @@ export function approvalState(task, kind, path, content) {
   return { ok: true, approval };
 }
 
+// The documents a human approves before the plan. A Cypress or Playwright task (automation-evidence)
+// cannot verify, or pass CI, without them; for other proof modes they are checked when approved.
+// Approved means unchanged: editing either document afterwards invalidates the work built on it.
+const GATE_DOCUMENTS = ["prd", "test-cases"];
+
+export function gateDocumentErrors(task, readDocument) {
+  const required = task.proofMode === "automation-evidence";
+  const errors = [];
+  for (const kind of GATE_DOCUMENTS) {
+    const approval = task.approvals?.[kind];
+    if (!approval) {
+      if (required) errors.push(`${kind} is not approved`);
+      continue;
+    }
+    const state = approvalState(
+      task,
+      kind,
+      approval.path,
+      readDocument(approval.path),
+    );
+    if (!state.ok) errors.push(state.reason);
+  }
+  return errors;
+}
+
 export function transition(task, to) {
   const allowed = {
     queued: new Set(["claimed"]),

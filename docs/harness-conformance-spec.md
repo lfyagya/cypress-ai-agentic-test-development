@@ -144,10 +144,12 @@ its size, never skipped. Task types (feature, defect, refactor, test, docs/confi
 own proof obligations on top. Upstream changes invalidate downstream work, repeated repair is
 bounded, and automatic shipping is disabled.
 
-**Mechanical versus guidance.** Task control records all four approvals as hashes and re-checks the
-`prd` and `test-cases` documents at `verify`; `verify` also requires the `plan` approval. Whether the
-PRD and cases approvals exist is not yet required by `verify`: that ordering is instruction-level and
-is checked by the independent evaluator.
+**Mechanical versus guidance.** Task control records all four approvals as hashes. `verify` requires
+the `plan` approval for every task and, for `automation-evidence` tasks (Cypress or Playwright
+work), the `prd` and `test-cases` approvals as well; an approved document that was edited afterwards
+blocks verification, and `task:check` in CI repeats the same checks. The implementation, execution,
+debugging, and validation ordering beyond those approvals is instruction-level and is checked by the
+independent evaluator.
 
 A profile may declare where its PRD material lives in an optional `sources` block (`tickets`,
 `confluence`, `figma`, `documentation`, `api`; each a string or list of strings naming a board, space,
