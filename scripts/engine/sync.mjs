@@ -22,6 +22,7 @@ import {
   readConfig,
   skillMarkerText,
 } from "./templates.mjs";
+import { planningScaffold } from "../../harness/workflow-model.mjs";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -216,6 +217,26 @@ if (adapterEnabled(config, "codex")) {
   removeOwned("AGENTS.md", "GENERATED FROM harness.config.json");
 }
 
+// GSD work state is team-owned, so unlike every projection above it is create-only: a missing
+// artifact is scaffolded, an existing one is never touched or drift-checked.
+function scaffoldPlanning() {
+  const { files, directory } = planningScaffold(config.workflow);
+  for (const [relative, content] of Object.entries(files)) {
+    const target = path.join(root, relative);
+    if (fs.existsSync(target)) continue;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content, "utf8");
+    console.log(`created ${relative}`);
+  }
+  const phases = path.join(root, directory);
+  if (!fs.existsSync(phases)) {
+    fs.mkdirSync(phases, { recursive: true });
+    fs.writeFileSync(path.join(phases, ".gitkeep"), "", "utf8");
+    console.log(`created ${directory}/`);
+  }
+}
+
 syncSkills();
+scaffoldPlanning();
 syncRules("CLAUDE.md");
 syncRules("README.md", { required: false });

@@ -5,20 +5,24 @@
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
+import {
+  laneModelIssues,
+  laneProfile,
+  profileBlockIssues,
+  selectLane,
+} from "../../harness/lane-model.mjs";
+import {
+  sourcesIssues,
+  workflowIssues,
+} from "../../harness/workflow-model.mjs";
 
 export const CONFIGURE_RE =
   /harness:init|harness:check|harness:ready|harness:lock|harness:compose|harness:sync|configure\.prompt|configure the (\w+ )?harness|(fill( in)?|edit|fix) (the )?(harness (config|profile)|harness\.config|project profile)/i;
 
-const REQUIRED_PROFILE = [
-  "key",
-  "displayName",
-  "owner",
-  "projectName",
-  "repo",
-  "adapter",
-  "pattern",
-];
+const REQUIRED_PROFILE = ["key", "displayName", "owner", "projectName"];
+const LEGACY_REQUIRED_PROFILE = ["repo", "adapter", "pattern"];
 const REQUIRED_BLOCKS = {
   paths: ["testRoot", "configRoot", "commandRoot", "specGlob"],
   wiring: ["packageManager", "workspacePackage", "verifyScript"],
@@ -78,7 +82,7 @@ export function findProfile(root, projectName) {
   return null;
 }
 
-function profileIssues(profile) {
+function profileIssues(profile, laneId) {
   const issues = [];
   for (const field of REQUIRED_PROFILE) {
     if (isPlaceholder(profile[field])) {
@@ -87,17 +91,59 @@ function profileIssues(profile) {
       );
     }
   }
-  for (const [block, fields] of Object.entries(REQUIRED_BLOCKS)) {
-    if (!profile[block] || typeof profile[block] !== "object") {
-      issues.push(`profile.${block} is required`);
-      continue;
-    }
-    for (const field of fields) {
-      if (isPlaceholder(profile[block][field])) {
+  if (profile.lanes === undefined) {
+    for (const field of LEGACY_REQUIRED_PROFILE) {
+      if (isPlaceholder(profile[field])) {
         issues.push(
-          `profile.${block}.${field} is missing or still a template placeholder`,
+          `profile.${field} is missing or still a template placeholder`,
         );
       }
+    }
+    for (const [block, fields] of Object.entries(REQUIRED_BLOCKS)) {
+      if (!profile[block] || typeof profile[block] !== "object") {
+        issues.push(`profile.${block} is required`);
+        continue;
+      }
+      for (const field of fields) {
+        if (isPlaceholder(profile[block][field])) {
+          issues.push(
+            `profile.${block}.${field} is missing or still a template placeholder`,
+          );
+        } else if (
+          typeof profile[block][field] !== "string" &&
+          block !== "wiring"
+        ) {
+          issues.push(`profile.${block}.${field} must be a string`);
+        }
+      }
+      if (block === "wiring" || block === "strategy") {
+        issues.push(
+          ...profileBlockIssues(`profile.${block}`, profile[block], block),
+        );
+      }
+    }
+  } else {
+    issues.push(...laneModelIssues(profile));
+    try {
+      const lane = selectLane(profile, laneId);
+      const facts = laneProfile(profile, lane);
+      if (laneId === undefined) {
+        issues.push(
+          "harness.config.json project.laneId is required for a lane-based profile",
+        );
+      }
+      for (const [block, fields] of Object.entries(REQUIRED_BLOCKS)) {
+        const value = facts[block];
+        for (const field of fields) {
+          if (isPlaceholder(value?.[field])) {
+            issues.push(
+              `selected lane ${lane.id} ${block}.${field} is missing or still a template placeholder`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      issues.push(error.message);
     }
   }
   if (!adaptersOn(profile.adapters)) {
@@ -112,6 +158,21 @@ export function datastoreIssues(datastore) {
   const issues = [];
   if (!datastore || typeof datastore !== "object") {
     return ["profile.datastore must be an object when present"];
+  }
+  if (
+    datastore.readOnly !== undefined &&
+    typeof datastore.readOnly !== "boolean"
+  ) {
+    issues.push("profile.datastore.readOnly must be a boolean when present");
+  }
+  if (
+    datastore.writeApproval !== undefined &&
+    (typeof datastore.writeApproval !== "string" ||
+      isPlaceholder(datastore.writeApproval))
+  ) {
+    issues.push(
+      "profile.datastore.writeApproval must name the person who approved writes",
+    );
   }
   if (!DATASTORE_DRIVERS.has(datastore.driver)) {
     issues.push(
@@ -135,7 +196,10 @@ export function datastoreIssues(datastore) {
         "env var or secret holding a least-privilege connection string. Never the value itself.",
     );
   }
-  if (reaches && !datastore.readOnly && !datastore.writeApproval) {
+  const hasWriteApproval =
+    typeof datastore.writeApproval === "string" &&
+    !isPlaceholder(datastore.writeApproval);
+  if (reaches && datastore.readOnly !== true && !hasWriteApproval) {
     issues.push(
       "profile.datastore declares write-capable access with no writeApproval — record who approved " +
         "tests writing to this datastore, or set readOnly: true.",
@@ -183,6 +247,17 @@ export function evaluateConfigReady(root) {
     };
   }
 
+  const workflowProblems = workflowIssues(config.workflow);
+  if (workflowProblems.length > 0) {
+    return {
+      ok: false,
+      complete: false,
+      locked: false,
+      status: "unconfigured",
+      issues: workflowProblems,
+    };
+  }
+
   if (!adaptersOn(config.adapters)) {
     return {
       ok: false,
@@ -206,7 +281,71 @@ export function evaluateConfigReady(root) {
     };
   }
 
-  const issues = profileIssues(found.profile);
+  const issues = profileIssues(found.profile, config.project.laneId);
+  issues.push(...sourcesIssues(found.profile.sources));
+  if (!isDeepStrictEqual(config.project.sources, found.profile.sources)) {
+    issues.push(
+      "harness.config.json project.sources does not match the profile's sources; re-compose it",
+    );
+  }
+  if (Array.isArray(found.profile.lanes)) {
+    try {
+      const lane = selectLane(found.profile, config.project.laneId);
+      const facts = laneProfile(found.profile, lane);
+      if (lane.adapter !== config.framework) {
+        issues.push(
+          `harness.config.json framework "${config.framework}" does not match lane "${lane.id}" adapter "${lane.adapter}"`,
+        );
+      }
+      if (config.project.laneKind !== lane.kind) {
+        issues.push(
+          `harness.config.json project.laneKind does not match lane "${lane.id}"`,
+        );
+      }
+      if (config.project.laneName !== lane.name) {
+        issues.push(
+          `harness.config.json project.laneName does not match lane "${lane.id}"`,
+        );
+      }
+      if (config.project.repo !== (lane.repo ?? found.profile.repo)) {
+        issues.push(
+          `harness.config.json project.repo does not match lane "${lane.id}"`,
+        );
+      }
+      if (config.project.pattern !== facts.pattern) {
+        issues.push(
+          `harness.config.json project.pattern does not match lane "${lane.id}"`,
+        );
+      }
+      if (!isDeepStrictEqual(config.project.safety, lane.safety)) {
+        issues.push(
+          `harness.config.json project.safety does not match lane "${lane.id}" safety declaration`,
+        );
+      }
+      for (const field of Object.keys(facts.paths ?? {})) {
+        if (config.project[field] !== facts.paths[field]) {
+          issues.push(
+            `harness.config.json project.${field} does not match lane "${lane.id}" paths`,
+          );
+        }
+      }
+      for (const block of ["wiring", "strategy"]) {
+        for (const field of Object.keys(facts[block] ?? {})) {
+          if (config[block]?.[field] !== facts[block][field]) {
+            issues.push(
+              `harness.config.json ${block}.${field} does not match lane "${lane.id}"`,
+            );
+          }
+        }
+      }
+    } catch {
+      // profileIssues already reports an invalid or unselected lane.
+    }
+  } else if (found.profile.adapter !== config.framework) {
+    issues.push(
+      `harness.config.json framework "${config.framework}" does not match profile adapter "${found.profile.adapter}"`,
+    );
+  }
   if (issues.length) {
     return {
       ok: false,
@@ -259,10 +398,14 @@ export function formatReadyMessage(result, { allowConfigure = false } = {}) {
     : result.status === "unlocked"
       ? "[harness-config] BLOCKED: profile is complete but not locked. A lead must lock it before the team uses it."
       : "[harness-config] BLOCKED: harness config is missing, broken, or still the template.";
+  const pipeline =
+    "npm run harness:compose && npm run harness:sync && npm run harness:check && npm run harness:lock";
   const next =
     result.status === "unlocked"
       ? "Then: npm run harness:lock"
-      : "Fill harness/profiles/projects/<key>.json (see harness/profiles/configure.prompt.md), then:\n  npm run harness:compose && npm run harness:sync && npm run harness:check && npm run harness:lock";
+      : result.issues.some((issue) => /canonical GSD workflow/.test(issue))
+        ? `The engine's GSD workflow is newer than this config. The profile needs no edits; regenerate:\n  ${pipeline}`
+        : `Fill harness/profiles/projects/<key>.json (see harness/profiles/configure.prompt.md), then:\n  ${pipeline}`;
   const issues = result.issues.map((i) => `  - ${i}`).join("\n");
   return `${head}\n${next}${issues ? `\nIssues:\n${issues}` : ""}`.trim();
 }

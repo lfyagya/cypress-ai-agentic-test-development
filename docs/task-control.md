@@ -8,7 +8,9 @@ it does not depend on LANE or another external orchestrator.
 
 The task record is coordination metadata, not a replacement for product intent, source review, or
 native runner evidence. Every task references one or more active ids in
-`evidence/requirements.json`; it never copies acceptance criteria into a second document.
+`evidence/requirements.json`; it never copies acceptance criteria into a second document. GSD phase
+plans live under `.planning/phases/`; task control approves and verifies that same plan file rather
+than maintaining a second plan tree under `docs/tasks/`.
 
 ## Requirement approval
 
@@ -20,6 +22,14 @@ setting to preserve that decision.
 `new` snapshots a SHA-256 digest of each active requirement's id, source, outcome, criteria,
 preconditions, and test classification. `verify` and `task:check` reject a task if any of those facts
 change. Create a new task after a material requirement change; do not update its stored digest.
+
+**Upgrade gate for pre-0.2.0 records:** verified or landed task records created before requirement
+digests were introduced have no proof of which requirement revision they implemented. Before
+upgrading a consumer to 0.2.0, identify those records with the existing engine, re-run their
+verification through the current workflow under new task ids, and reconcile any dependent work.
+Do not fabricate digest snapshots for historical records. The new checker intentionally refuses to
+accept a verified legacy record without a digest; do not deploy the upgraded consumer until this
+migration is complete.
 
 The portable enforcement path is local: `new` records the requirement fingerprint, `verify` checks it
 before writing `verifiedCommit`, and `task:check` checks it again before a task is accepted. CI or a
@@ -55,7 +65,8 @@ worktree. Task records live at `evidence/tasks/<id>.json`.
    node scripts/task-control.mjs claim --id TASK-001 --owner "Reviewer name" --worktree C:\worktrees\TASK-001
    ```
 
-   Do the implementation and write the plan inside this claimed worktree. Do not share, reuse, or
+   Do the implementation and write the plan under `.planning/phases/` inside this claimed worktree.
+   Do not share, reuse, or
    hand-edit another task's worktree. `claim` also writes the claimed manifest into that branch.
    Approve and verify from the claimed worktree, then commit its manifest, approved plan, and proof
    report. CI rejects a task branch if code changed after its verification commit.
@@ -64,15 +75,22 @@ worktree. Task records live at `evidence/tasks/<id>.json`.
    of the approval, so any later edit blocks verification until it is approved again.
 
    ```text
-   node scripts/task-control.mjs approve --id TASK-001 --artifact plan --file docs/tasks/TASK-001/plan.md --by "Reviewer name"
+   node scripts/task-control.mjs approve --id TASK-001 --artifact plan --file .planning/phases/01-checkout/TASK-001-plan.md --by "Reviewer name"
    ```
+
+   The delivery pipeline has four human gates, each recorded the same way under its own artifact
+   kind: `prd`, `plan` (the test plan), `test-cases`, and `verification`. `verify` requires the
+   `plan` approval, and re-checks the `prd` and `test-cases` documents when they were approved, so
+   editing either after approval blocks verification until it is approved again. Whether the `prd` and
+   `test-cases` approvals exist at all is not yet required by `verify`; the independent evaluator
+   checks that ordering.
 
 4. **Attach proof and verify.** The verifier checks the selected proof mode, then writes the task
    as `verified`.
 
    ```text
    node scripts/task-control.mjs attach-evidence --id TASK-001 --file evidence/runner-result.json
-   node scripts/task-control.mjs verify --id TASK-001 --plan docs/tasks/TASK-001/plan.md
+   node scripts/task-control.mjs verify --id TASK-001 --plan .planning/phases/01-checkout/TASK-001-plan.md
    ```
 
 5. **Land only after the merge exists.** Record the actual merge commit; do not use this command as

@@ -15,26 +15,40 @@ for everyone rather than patched for this project. §9 of the spec.
 
 ## What you need before you start
 
-- A checkout of the boilerplate matching the project's framework — `lf-playwright-boilerplate` or
-  `cypress-automation-boilerplate`. This is where you run the installer _from_.
+- A checkout of each boilerplate needed by the project's lanes — `lf-playwright-boilerplate`
+  and/or `cypress-automation-boilerplate`. Install each lane from its matching adapter.
 - The target repository, checked out, on a branch.
 - Node 22.
-- Answers to the six questions in **Decide**. These are the only things nobody else can supply.
+- The project requirements/context and answers in **Decide**. These are the project facts the
+  harness must not invent.
 
 ---
 
 ## Step 1 — Decide
 
-Six answers. Everything else is mechanical.
+Record one shared project identity, then define each lane explicitly. Everything else is
+mechanical.
 
-| #   | Question                                                      | Goes in    | Notes                                                                        |
-| --- | ------------------------------------------------------------- | ---------- | ---------------------------------------------------------------------------- |
-| 1   | Who is accountable for this suite?                            | `owner`    | **A person, not a team.** A team owning something is how it ends up unowned. |
-| 2   | Which framework?                                              | `adapter`  | `playwright` or `cypress`. Must match the boilerplate you install from.      |
-| 3   | What is the architecture?                                     | `pattern`  | `helper-first`, `command-first`, `pom`, `bdd-pom`, `data-driven`. See below. |
-| 4   | Where does the code live?                                     | `paths`    | Their real directories. All must exist on disk.                              |
-| 5   | How do they authenticate, seed data, and get credentials?     | `strategy` | `auth`, `testData`, `credentialSource`                                       |
-| 6   | What is their pre-commit/CI entry point, and package manager? | `wiring`   | The harness will not edit `package.json`; this records where their gate is.  |
+| #   | Question                                                   | Goes in                                | Notes                                                                                                  |
+| --- | ---------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 1   | Who owns this project and what is its stable project name? | `owner`, `projectName`                 | Name a person as owner, not only a team.                                                               |
+| 2   | Which governed lanes exist?                                | `lanes[]`                              | Each has a unique ID, kind, adapter, architecture pattern, repo, and safety policy.                    |
+| 3   | Where does each lane's code live?                          | shared `paths`, lane `paths` overrides | All resulting paths must be real and scanner-verified.                                                 |
+| 4   | How do lanes authenticate, seed data, and get credentials? | shared `strategy`, lane overrides      | Only define a lane override where it differs.                                                          |
+| 5   | What package manager and verify command are already used?  | shared `wiring`, lane overrides        | The overlay never edits `package.json`.                                                                |
+| 6   | Which AI tools does the project use?                       | `adapters`                             | Enable only tools actually used by the team.                                                           |
+| 7   | What requirements and acceptance evidence govern the work? | `.planning/` and `evidence/`           | The GSD pipeline owns the stages and gates; project facts and acceptance criteria remain team-owned.   |
+| 8   | Where do the requirements come from?                       | `sources`                              | Tickets, Confluence, Figma, documentation, API: name where each lives; delete the ones you do not use. |
+
+Supported active runner adapters are Cypress and Playwright. Pytest is future work and must not be
+declared as an enforced lane yet. Declare one lane per kind of test the project has: `e2e`, `frontend`, `backend`, `functional`,
+`integration`, `regression`, `smoke`, `api`, `contract`, `component`, `performance`, `accessibility`,
+or `other`. Nothing requires an end-to-end, smoke, or API lane specifically. Smoke and
+production-targeting lanes are always read-only.
+
+A lane's `safety` is a declared, validated, drift-checked policy that the generated instructions
+restate to agents. It is not a sandbox: only the Tier 0 smoke rule and the QA gate block mechanically,
+so scope credentials to match what the lane declares.
 
 **On question 3.** The pattern decides which architecture rules apply. A project whose architecture
 _is_ page objects does not get the rule forbidding page objects — not as a favour, but because the
@@ -54,19 +68,15 @@ One file. Copy this, replace every value, delete nothing.
   "displayName": "Their Project",
   "owner": "A Named Person",
   "repo": "/path/or/url",
-
-  "adapter": "cypress",
   "language": "javascript",
   "projectName": "their-project-automation",
 
-  "pattern": "pom",
-
+  // Shared defaults; lane values override these field-by-field.
   "paths": {
-    "testRoot": "cypress",
+    "testRoot": "cypress/tests",
     "configRoot": "cypress/configs",
     "commandRoot": "cypress/pages",
     "specGlob": "cypress/tests/**/*.cy.{js,ts}",
-    // BDD projects add: "stepRoot": "cypress/support/steps"
   },
   "wiring": {
     "packageManager": "npm",
@@ -79,13 +89,96 @@ One file. Copy this, replace every value, delete nothing.
     "credentialSource": "ci-secret",
   },
 
+  // Where the PRD material lives. Locations only, never credentials; delete what you do not use.
+  "sources": {
+    "tickets": "Jira project PAY",
+    "confluence": "Space PAY-QA",
+    "figma": "https://www.figma.com/file/<id>",
+    "documentation": "docs/",
+    "api": "https://example.test/openapi.json",
+  },
+
+  // One lane per kind of test. Each picks its own adapter, pattern, paths, and safety.
+  "lanes": [
+    {
+      "id": "ui-e2e",
+      "name": "UI end to end",
+      "kind": "e2e",
+      "adapter": "cypress",
+      "pattern": "pom",
+      "safety": {
+        "targets": ["dev", "qa"],
+        "mutation": "allowlisted",
+        "allowedOperations": ["create synthetic test data"],
+      },
+    },
+    {
+      "id": "api-integration",
+      "name": "Backend integration",
+      "kind": "integration",
+      "adapter": "playwright",
+      "pattern": "helper-first",
+      "paths": {
+        "testRoot": "playwright/tests",
+        "configRoot": "playwright/config",
+        "commandRoot": "playwright/helpers",
+        "specGlob": "playwright/tests/api/**/*.spec.ts",
+      },
+      "safety": {
+        "targets": ["qa"],
+        "mutation": "allowlisted",
+        "allowedOperations": ["create and delete synthetic orders"],
+      },
+    },
+    {
+      "id": "regression",
+      "name": "Regression",
+      "kind": "regression",
+      "adapter": "cypress",
+      "pattern": "pom",
+      "paths": { "specGlob": "cypress/tests/regression/**/*.cy.ts" },
+      "safety": { "targets": ["qa", "staging"], "mutation": "read-only" },
+    },
+    {
+      "id": "prod-smoke",
+      "name": "Production smoke",
+      "kind": "smoke",
+      "adapter": "playwright",
+      "pattern": "helper-first",
+      "paths": {
+        "testRoot": "playwright/tests",
+        "configRoot": "playwright/config",
+        "commandRoot": "playwright/helpers",
+        "specGlob": "playwright/tests/smoke/**/*.spec.ts",
+      },
+      "safety": { "targets": ["production"], "mutation": "read-only" },
+    },
+  ],
+
   "adapters": { "claude": { "enabled": true } },
 }
 ```
 
 Every enumerated value is validated, so a typo fails loudly rather than being ignored. Allowed
 values: `packageManager` npm|yarn|pnpm · `auth` cached-session|storage-state|per-test-login|token-injection ·
-`testData` fresh|seeded|cached-fixture · `credentialSource` vault|env|ci-secret.
+`testData` fresh|seeded|cached-fixture · `credentialSource` vault|env|ci-secret. A lane inherits
+shared `paths`, `wiring`, and `strategy` field-by-field; its values override only matching keys.
+Every lane still resolves to a complete configuration. The selected lane controls the adapter,
+architecture, paths, safety declaration, and evidence identity; a stale top-level adapter never
+routes a lane.
+
+The engine owns one canonical delivery pipeline — PRD, test plan, test cases, implementation,
+execution, debugging, evidence, validation, release — with human approval gates after the PRD, the
+plan, the cases, and validation, and it maps feature, defect, refactor, test, docs/config, and
+research tasks to the evidence they must produce. Do not duplicate or override this workflow in the
+profile. Generated instructions route every enabled AI tool through the same pipeline. The PRD
+stage collects from the `sources` you declared; the test plan is organised by format (backend,
+frontend, functional, integration, regression, smoke) and each section names the lane that owns it. Each project
+keeps GSD's `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, and `phases/` under
+`.planning/`; `sync` scaffolds them when absent and never overwrites them, and requirement and test
+evidence remains linked through the harness evidence registry. Plain markdown is enough — no
+separate GSD install is required. Agents that can write get the full pipeline; the read-only QA
+gate gets an evidence-review and validation stanza only.
 
 **If their suite is not fully requirement-tagged** — most existing suites are not — add a recorded
 downgrade with an end date. An exception with no reason is indistinguishable from a mistake, so both
@@ -112,13 +205,13 @@ From the boilerplate checkout, dry run first. It prints every file it would writ
 of them is already theirs.
 
 ```bash
-node scripts/engine/install-overlay.mjs --target /path/to/their/repo --profile /path/to/profile.json
+node scripts/engine/install-overlay.mjs --target /path/to/their/repo --profile /path/to/profile.json --lane ui-e2e
 ```
 
 Read the manifest. Then:
 
 ```bash
-node scripts/engine/install-overlay.mjs --target /path/to/their/repo --profile /path/to/profile.json --apply
+node scripts/engine/install-overlay.mjs --target /path/to/their/repo --profile /path/to/profile.json --lane ui-e2e --apply
 ```
 
 It never writes their `package.json`, runner config, lint or type-check config, or any test file. It
@@ -131,13 +224,16 @@ appends a marker-delimited block to their `CLAUDE.md` and leaves the rest of tha
 In the target repo:
 
 ```bash
-node harness/profiles/bin/compose-harness-config.mjs --profile harness/profiles/projects/<key>.json --out harness.config.json
+node harness/profiles/bin/compose-harness-config.mjs --profile harness/profiles/projects/<key>.json --lane ui-e2e --out harness.config.json
 node scripts/engine/sync.mjs
 node scripts/engine/check-drift.mjs
 node scripts/engine/lock-profile.mjs
 ```
 
-`sync` generates the AI-tool projections and fills the rules block. `check-drift` proves they match
+`--lane` is required the first time. Re-composing or `--verify` afterwards reuses the lane recorded in
+`harness.config.json`, so the plain `harness:compose` script keeps working.
+
+`sync` generates the AI-tool projections, fills the rules block, and scaffolds `.planning/` if it is missing. `check-drift` proves they match
 the config. `lock-profile` signs the profile off; until it is locked, the prompt gate blocks work in
 that repo and tells the user what to run.
 
@@ -149,7 +245,7 @@ that repo and tells the user what to run.
 node scripts/engine/conformance.mjs
 ```
 
-Seven invariants, each reported `ok`, `ramping`, or `GAP`. This is the conversation with the team,
+Eight invariants, each reported `ok`, `ramping`, or `GAP`. This is the conversation with the team,
 not a build gate — it reports and fixes nothing, because every gap is a decision someone owns.
 
 `ramping` is legitimate: traceability at `review` with a recorded ratchet date. `ramping` with no end

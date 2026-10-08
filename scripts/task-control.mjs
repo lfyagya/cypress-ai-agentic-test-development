@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, readJson } from "./lib/cli.mjs";
 import {
+  APPROVAL_KINDS,
   activeRequirementIds,
   approvalState,
   approveArtifact,
@@ -32,7 +33,7 @@ function usage() {
   console.error(`Usage:
   task-control.mjs new --id <id> --requirement <id[,id]> --proof-mode <source-tdd|automation-evidence|no-test> [--reason <text>]
   task-control.mjs claim --id <id> --owner <name> --worktree <absolute-path> [--branch <name>]
-  task-control.mjs approve --id <id> --artifact <plan|verification> --file <repo-relative-path> --by <name>
+  task-control.mjs approve --id <id> --artifact <prd|plan|test-cases|verification> --file <repo-relative-path> --by <name>
   task-control.mjs attach-evidence --id <id> --file <repo-relative-path>
   task-control.mjs verify --id <id> --plan <repo-relative-path>
   task-control.mjs land --id <id> --merge <sha>
@@ -166,8 +167,8 @@ function commandClaim(args) {
 
 function commandApprove(args) {
   const task = loadTask(requireId(args));
-  if (!new Set(["plan", "verification"]).has(args.artifact)) {
-    throw new Error("--artifact must be plan or verification");
+  if (!APPROVAL_KINDS.includes(args.artifact)) {
+    throw new Error(`--artifact must be one of ${APPROVAL_KINDS.join(", ")}`);
   }
   if (typeof args.file !== "string" || typeof args.by !== "string") {
     throw new Error("--file and --by are required");
@@ -362,6 +363,20 @@ function commandVerify(args) {
     fs.readFileSync(plan.absolute, "utf8"),
   );
   if (!planApproval.ok) throw new Error(planApproval.reason);
+  // Earlier gate documents, when approved, must be unchanged: editing a PRD or the cases after
+  // approval invalidates the work built on them.
+  for (const kind of ["prd", "test-cases"]) {
+    const approval = task.approvals?.[kind];
+    if (!approval) continue;
+    const document = taskArtifactFile(task, approval.path);
+    const state = approvalState(
+      task,
+      kind,
+      document.relative,
+      fs.readFileSync(document.absolute, "utf8"),
+    );
+    if (!state.ok) throw new Error(state.reason);
+  }
   if (task.proofMode === "automation-evidence") {
     if (!task.evidence)
       throw new Error(

@@ -33,6 +33,15 @@
     "testData": "<fresh | seeded | cached-fixture>",
     "credentialSource": "<vault | env | ci-secret>"
   },
+  "$sources": "Where the requirements come from, so the PRD stage collects from real places instead of guessing. Locations only (a board, a space, a file, a spec URL), never a credential. Known keys: tickets, confluence, figma, documentation, api; each is a string or a list of strings. DELETE the keys this project does not use: an unfilled <placeholder> is rejected.",
+  "sources": {
+    "tickets": "<ticket project or board>",
+    "confluence": "<space or page>",
+    "figma": "<file URL>",
+    "documentation": "<path or URL>",
+    "api": "<OpenAPI or Swagger URL or path>"
+  },
+  "$lanes": "Optional, and omitted here on purpose. A repo with ONE kind of test needs no lanes: this file is the one lane. When the project has several kinds of tests, add a lanes array with one entry per kind (kind: e2e, frontend, backend, functional, integration, regression, smoke, api, contract, component, performance, accessibility, or other). Each lane needs id, name, kind, adapter (cypress or playwright) and safety {targets, mutation}; its pattern, paths, wiring and strategy override the shared values above field by field. Compose then needs --lane <id> the first time. See docs/harness-onboarding-runbook.md.",
   "locked": false,
 
   "$adapters": "ASK THE TEAM. Which AI coding tools will actually be used here? Enable each one the team uses; disabling one removes its generated files on the next sync, so a Claude-only team stops carrying files it never opens. At least one must stay enabled. Claude, Copilot, and Cursor refuse a violating write via PreToolUse/preToolUse (exit 2). Codex has no hook API — its gate is `npm run verify` and the pre-push hook. See docs/architecture/cross-tool-configuration.md.",

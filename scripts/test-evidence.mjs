@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildEvidence } from "./evidence.mjs";
+import { buildEvidence, specRoot } from "./evidence.mjs";
 
 const requirement = {
   id: "PAY-CHECKOUT-001",
@@ -198,6 +198,57 @@ try {
   assert.equal(playwright.summary.tests[0].requirement, requirement.id);
   assert.equal(playwright.metrics.metrics.M5.value, 1);
 
+  fs.writeFileSync(
+    path.join(playwrightRoot, "harness.config.json"),
+    JSON.stringify({
+      framework: "playwright",
+      project: {
+        laneId: "ui-e2e",
+        laneName: "UI E2E",
+        laneKind: "e2e",
+        specGlob: "playwright/tests/**/*.spec.ts",
+      },
+    }),
+  );
+  const laneEvidence = buildEvidence({
+    root: playwrightRoot,
+    framework: "playwright",
+    reportPath: playwrightReport,
+    runId: "playwright-lane-run",
+    now: "2026-01-01T00:00:00.000Z",
+  });
+  assert.equal(laneEvidence.summary.laneId, "ui-e2e");
+  assert.equal(laneEvidence.summary.laneName, "UI E2E");
+  assert.equal(laneEvidence.summary.laneKind, "e2e");
+  assert.equal(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(playwrightRoot, "evidence", "coverage-computed.json"),
+        "utf8",
+      ),
+    ).laneId,
+    "ui-e2e",
+  );
+  assert.throws(
+    () =>
+      buildEvidence({
+        root: playwrightRoot,
+        framework: "playwright",
+        laneId: "ui-smoke",
+        reportPath: playwrightReport,
+      }),
+    /does not match configured lane/,
+  );
+  assert.throws(
+    () =>
+      buildEvidence({
+        root: playwrightRoot,
+        framework: "cypress",
+        reportPath: playwrightReport,
+      }),
+    /does not match harness.config.json framework/,
+  );
+
   const emptyRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "harness-evidence-empty-"),
   );
@@ -285,6 +336,17 @@ try {
 } finally {
   for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
 }
+
+// The scan root is the glob's static base, not project.testRoot (which also holds support code).
+assert.equal(specRoot("cypress/tests/**/*.cy.{js,ts}", "x"), "cypress/tests");
+assert.equal(specRoot("tests/e2e/**/*.spec.ts", "x"), "tests/e2e");
+assert.equal(
+  specRoot("tests/smoke.cy.ts", "x"),
+  "tests",
+  "no wildcard: drop the file",
+);
+assert.equal(specRoot("**/*.spec.ts", "fallback"), "fallback");
+assert.equal(specRoot(undefined, "fallback"), "fallback");
 
 console.log(
   "[evidence:test] Cypress, Playwright, and empty-state evidence passed.",

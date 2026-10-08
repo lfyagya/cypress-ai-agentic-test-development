@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Does this repository satisfy the seven conformance invariants?
+ * Does this repository satisfy the eight conformance invariants?
  *
  *   node scripts/engine/conformance.mjs
  *
  * Reports gaps. Fixes nothing, deliberately: this is the negotiation surface with a team, and
- * seven items each defensible on its own merits is a conversation. A tool that silently repaired
+ * eight items each defensible on its own merits is a conversation. A tool that silently repaired
  * them would be making commitments on the team's behalf.
  *
  * Three outcomes per invariant. `ok` is satisfied. `ramping` is a legitimate onboarding state with a
@@ -19,6 +19,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CONCERNS } from "../../harness/concerns.mjs";
+import {
+  planningScaffold,
+  workflowIssues,
+} from "../../harness/workflow-model.mjs";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -51,6 +55,7 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
   const profileDirectory = path.join(root, "harness", "profiles", "projects");
   let reproduces = false;
   let profileKey = null;
+  let composeError = null;
   try {
     const { compose } = await import(
       pathToFileURL(
@@ -70,13 +75,17 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
       );
       if (profile.projectName !== project.name) continue;
       profileKey = profile.key;
-      const composed = { ...compose(profile), $comment: 0 };
+      const composed = {
+        ...compose(profile, undefined, project.laneId),
+        $comment: 0,
+      };
       reproduces =
         JSON.stringify(composed) === JSON.stringify({ ...config, $comment: 0 });
       break;
     }
-  } catch {
+  } catch (error) {
     reproduces = false;
+    composeError = error.message.split("\n")[0];
   }
   if (generated && reproduces) {
     record(
@@ -97,8 +106,10 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
       "I1",
       "One generated source of policy",
       "gap",
-      `${profileKey} does not reproduce harness.config.json — it has been hand-edited, so the ` +
-        `profile is no longer the source of truth`,
+      composeError
+        ? `${profileKey} cannot be composed: ${composeError}`
+        : `${profileKey} does not reproduce harness.config.json — it has been hand-edited, so the ` +
+            `profile is no longer the source of truth`,
     );
   } else {
     record(
@@ -352,6 +363,64 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
       "ok",
       "evidence tooling and requirement registry present",
     );
+  }
+}
+
+// I8 — the same GSD lifecycle and task obligations reach every enabled AI tool projection.
+{
+  const invalidWorkflow = workflowIssues(config.workflow);
+  const projections = {
+    claude: "CLAUDE.md",
+    copilot: ".github/copilot-instructions.md",
+    cursor: ".cursor/rules/harness.mdc",
+    codex: "AGENTS.md",
+  };
+  const missing = Object.entries(adapters)
+    .filter(([, adapter]) => adapter?.enabled)
+    .map(([adapter]) => {
+      const relative = projections[adapter];
+      return !relative ||
+        !exists(relative) ||
+        !read(relative).includes("GSD workflow — required for every task")
+        ? (relative ?? `unknown adapter "${adapter}"`)
+        : null;
+    })
+    .filter(Boolean);
+  if (invalidWorkflow.length > 0) {
+    record(
+      "I8",
+      "GSD delivery pipeline and routing",
+      "gap",
+      invalidWorkflow.join("; "),
+    );
+  } else if (missing.length > 0) {
+    record(
+      "I8",
+      "GSD delivery pipeline and routing",
+      "gap",
+      `workflow guidance missing from enabled projection(s): ${missing.join(", ")}`,
+    );
+  } else {
+    // The guidance tells agents to read .planning/, so its absence is a gap, not a hint.
+    const { files, directory } = planningScaffold(config.workflow);
+    const unscaffolded = [...Object.keys(files), directory].filter(
+      (relative) => !exists(relative),
+    );
+    if (unscaffolded.length > 0) {
+      record(
+        "I8",
+        "GSD delivery pipeline and routing",
+        "gap",
+        `GSD work state missing: ${unscaffolded.join(", ")} — run npm run harness:sync`,
+      );
+    } else {
+      record(
+        "I8",
+        "GSD delivery pipeline and routing",
+        "ok",
+        "canonical GSD pipeline, its gates, and task-specific obligations are configured, projected, and scaffolded",
+      );
+    }
   }
 }
 

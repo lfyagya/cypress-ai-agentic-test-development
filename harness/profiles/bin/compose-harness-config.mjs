@@ -12,6 +12,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, readJson } from "../../../scripts/lib/cli.mjs";
 import { CONCERNS, CONCERN_IDS } from "../../concerns.mjs";
+import {
+  laneModelIssues,
+  laneProfile,
+  profileBlockIssues,
+  selectLane,
+} from "../../lane-model.mjs";
+import { GSD_WORKFLOW, sourcesIssues } from "../../workflow-model.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ADAPTERS = path.join(HERE, "..", "adapters");
@@ -40,54 +47,10 @@ function resolveAdapters(profile, base) {
 //
 // Enumerated so a typo fails rather than being ignored. `verifyScript` is free-form because it names
 // the consumer's own entry point, which the engine cannot know.
-const WIRING_SCHEMA = {
-  packageManager: ["npm", "yarn", "pnpm"],
-  workspacePackage: "boolean",
-  verifyScript: "string",
-};
-const STRATEGY_SCHEMA = {
-  auth: [
-    "cached-session",
-    "storage-state",
-    "per-test-login",
-    "token-injection",
-  ],
-  testData: ["fresh", "seeded", "cached-fixture"],
-  credentialSource: ["vault", "env", "ci-secret"],
-};
-
-function validateBlock(name, block, schema) {
-  if (block === undefined) return undefined;
-  if (typeof block !== "object" || block === null || Array.isArray(block)) {
-    throw new Error(`profile.${name} must be an object`);
-  }
-  for (const [key, value] of Object.entries(block)) {
-    if (key.startsWith("$")) continue; // inline documentation, by convention
-    const expected = schema[key];
-    if (!expected) {
-      throw new Error(
-        `profile.${name}.${key} is not a known key. Known: ${Object.keys(schema).join(", ")}. ` +
-          `An unrecognised key would be carried nowhere and read as configured.`,
-      );
-    }
-    if (Array.isArray(expected)) {
-      if (!expected.includes(value)) {
-        throw new Error(
-          `profile.${name}.${key} is "${value}"; expected one of ${expected.join(", ")}`,
-        );
-      }
-      continue;
-    }
-    if (expected === "boolean" && typeof value !== "boolean") {
-      throw new Error(
-        `profile.${name}.${key} must be a boolean, got ${typeof value}`,
-      );
-    }
-    if (expected === "string" && typeof value !== "string") {
-      throw new Error(
-        `profile.${name}.${key} must be a string, got ${typeof value}`,
-      );
-    }
+function validateBlock(name, block) {
+  const issues = profileBlockIssues(`profile.${name}`, block, name);
+  if (issues.length) {
+    throw new Error(issues.join("\n"));
   }
   return block;
 }
@@ -175,58 +138,77 @@ export function resolveRules(base, profile) {
     });
 }
 
-export function compose(profile, adaptersDir = ADAPTERS) {
-  if (!profile.adapter) throw new Error("profile.adapter is required");
-  const baselineFile = path.join(adaptersDir, `${profile.adapter}.json`);
+export function compose(profile, adaptersDir = ADAPTERS, laneId) {
+  const laneIssues = laneModelIssues(profile);
+  if (laneIssues.length) {
+    throw new Error(laneIssues.join("\n"));
+  }
+  const sourceProblems = sourcesIssues(profile.sources);
+  if (sourceProblems.length) {
+    throw new Error(sourceProblems.join("\n"));
+  }
+  const lane = selectLane(profile, laneId);
+  const laneFacts = laneProfile(profile, lane);
+  if (!laneFacts.adapter) {
+    throw new Error("selected lane must declare an adapter");
+  }
+  const baselineFile = path.join(adaptersDir, `${laneFacts.adapter}.json`);
   if (!fs.existsSync(baselineFile)) {
     throw new Error(
-      `Unknown adapter "${profile.adapter}" — no ${baselineFile}`,
+      `Unknown adapter "${laneFacts.adapter}" — no ${baselineFile}`,
     );
   }
   const base = readJson(baselineFile);
   const over = profile.overrides ?? {};
 
   if (!profile.projectName) throw new Error("profile.projectName is required");
+  const projectPaths = {
+    ...base.paths,
+    ...(laneFacts.paths ?? {}),
+  };
 
   const config = {
     $comment:
       `GENERATED from docs/harness/profiles by compose-harness-config.mjs. ` +
-      `Policy lives in the adapter baseline (${profile.adapter}.json); project facts live in ` +
-      `the profile (${profile.key}). Re-compose after editing either, then run npm run harness:sync.`,
+      `Policy lives in the adapter baseline (${laneFacts.adapter}.json); project and lane facts ` +
+      `live in the profile (${profile.key}). Re-compose after editing either, then run npm run harness:sync.`,
     version: base.version,
     framework: base.framework,
+    workflow: structuredClone(GSD_WORKFLOW),
     ...(base.agentFileExtension
       ? { agentFileExtension: base.agentFileExtension }
       : {}),
     adapters: resolveAdapters(profile, base),
     project: {
       name: profile.projectName,
+      laneId: lane.id,
+      laneName: lane.name ?? lane.id,
+      laneKind: lane.kind ?? "e2e",
+      repo: lane.repo ?? profile.repo,
+      safety: lane.safety,
+      ...(profile.sources ? { sources: profile.sources } : {}),
       architecture: base.architecture,
-      pattern: profile.pattern ?? base.pattern,
+      pattern: laneFacts.pattern ?? base.pattern,
       // D3 topology: a project declares its own tree, falling back to the adapter's layout.
       // The rule patterns derive from these, so a declared root that does not exist on disk is
       // caught by test-config-paths-honest rather than silently scanning nothing.
-      ...{ ...base.paths, ...(profile.paths ?? {}) },
+      ...projectPaths,
     },
     context: { ...base.defaults.context, ...(over.context ?? {}) },
     ...(base.defaults.env || over.env
       ? { env: { ...(base.defaults.env ?? {}), ...(over.env ?? {}) } }
       : {}),
     loops: { ...base.defaults.loops, ...(over.loops ?? {}) },
-    ...(profile.wiring
-      ? { wiring: validateBlock("wiring", profile.wiring, WIRING_SCHEMA) }
+    ...(laneFacts.wiring
+      ? { wiring: validateBlock("wiring", laneFacts.wiring) }
       : {}),
-    ...(profile.strategy
+    ...(laneFacts.strategy
       ? {
-          strategy: validateBlock(
-            "strategy",
-            profile.strategy,
-            STRATEGY_SCHEMA,
-          ),
+          strategy: validateBlock("strategy", laneFacts.strategy),
         }
       : {}),
     qaFoundations: base.qaFoundations,
-    rules: resolveRules(base, profile),
+    rules: resolveRules(base, laneFacts),
     agents: base.agents,
     hooks: base.hooks,
     ...(base.skills ? { skills: base.skills } : {}),
@@ -254,6 +236,14 @@ function diff(a, b, at = "", out = []) {
   return out;
 }
 
+export function recordedLane(file) {
+  try {
+    return readJson(file).project?.laneId;
+  } catch {
+    return undefined; // no config yet (or unreadable): the caller must name a lane
+  }
+}
+
 const isMain =
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -261,7 +251,13 @@ if (isMain) {
   try {
     const args = parseArgs(process.argv.slice(2));
     if (!args.profile) throw new Error("--profile is required");
-    const composed = compose(readJson(args.profile));
+    // Re-composing or verifying an existing config keeps its lane: `--lane` is only needed the
+    // first time, so the plain `harness:compose` / `harness:profile:verify` scripts keep working.
+    const composed = compose(
+      readJson(args.profile),
+      ADAPTERS,
+      args.lane ?? recordedLane(args.verify ?? args.out),
+    );
 
     if (args.verify) {
       const live = readJson(args.verify);

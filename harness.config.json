@@ -1,7 +1,152 @@
 {
-  "$comment": "GENERATED from docs/harness/profiles by compose-harness-config.mjs. Policy lives in the adapter baseline (cypress.json); project facts live in the profile (cypress-boilerplate). Re-compose after editing either, then run npm run harness:sync.",
+  "$comment": "GENERATED from docs/harness/profiles by compose-harness-config.mjs. Policy lives in the adapter baseline (cypress.json); project and lane facts live in the profile (cypress-boilerplate). Re-compose after editing either, then run npm run harness:sync.",
   "version": 1,
   "framework": "cypress",
+  "workflow": {
+    "version": 1,
+    "model": "gsd",
+    "planningRoot": ".planning",
+    "artifacts": {
+      "project": "PROJECT.md",
+      "requirements": "REQUIREMENTS.md",
+      "roadmap": "ROADMAP.md",
+      "state": "STATE.md",
+      "phases": "phases"
+    },
+    "pipeline": [
+      {
+        "id": "prd",
+        "title": "PRD",
+        "artifact": "PRD.md",
+        "sources": [
+          "tickets",
+          "confluence",
+          "figma",
+          "documentation",
+          "api"
+        ],
+        "does": "Collect the product requirements from every declared source and reconcile them into one PRD. Record conflicts and gaps between sources instead of resolving them silently.",
+        "approval": "prd"
+      },
+      {
+        "id": "test-plan",
+        "title": "Test plan",
+        "artifact": "TEST-PLAN.md",
+        "formats": [
+          "backend",
+          "frontend",
+          "functional",
+          "integration",
+          "regression",
+          "smoke"
+        ],
+        "does": "From the approved PRD, plan the testing in sections by format. For each section say what it covers, which lane owns it, what is out of scope, and the environment and data it needs.",
+        "approval": "plan"
+      },
+      {
+        "id": "test-cases",
+        "title": "Test cases",
+        "artifact": "TEST-CASES.md",
+        "inputs": [
+          "specs",
+          "codebase",
+          "existing automation coverage"
+        ],
+        "does": "From the approved plan, write detailed cases that cover each flow end to end. Read the specs and the code, and check existing automation first: mark every case new, extended, or already covered, and never duplicate coverage.",
+        "approval": "test-cases"
+      },
+      {
+        "id": "implementation",
+        "title": "Implementation",
+        "standards": [
+          "framework standard",
+          "well structured",
+          "reusable",
+          "maintainable",
+          "readable"
+        ],
+        "does": "Implement only approved cases, following the framework's architecture and rules. Reuse existing commands, helpers, and fixtures before adding new ones."
+      },
+      {
+        "id": "execution",
+        "title": "Execution",
+        "does": "Run the focused tests first, then the impacted regression checks, using the project's own commands."
+      },
+      {
+        "id": "debugging",
+        "title": "Debugging",
+        "does": "Diagnose each failure from its evidence and fix the root cause, not the symptom."
+      },
+      {
+        "id": "evidence",
+        "title": "Evidence",
+        "does": "Record the runs as evidence and link every case to its requirement. Without recorded evidence the work is not complete."
+      },
+      {
+        "id": "validation",
+        "title": "Validation",
+        "does": "Reconcile the results against the approved PRD, plan, and cases, and list every gap. An independent reviewer judges this stage, not the author.",
+        "approval": "verification"
+      },
+      {
+        "id": "release",
+        "title": "Release",
+        "does": "Prepare release material only. A human decides, performs, or authorises the release: an agent never publishes, merges, or deploys."
+      }
+    ],
+    "taskTypes": {
+      "feature": [
+        "acceptance criteria",
+        "source context",
+        "dependency-aware plan",
+        "focused tests",
+        "regression impact",
+        "verification evidence"
+      ],
+      "defect": [
+        "reproduction evidence",
+        "source context",
+        "regression test",
+        "root-cause fix",
+        "verification evidence"
+      ],
+      "refactor": [
+        "behavior baseline",
+        "bounded scope",
+        "dependency-aware plan",
+        "regression tests",
+        "verification evidence"
+      ],
+      "test": [
+        "requirement mapping",
+        "scenario and test plan",
+        "test implementation",
+        "focused execution",
+        "coverage evidence"
+      ],
+      "docs-config": [
+        "scope and owner",
+        "source-of-truth mapping",
+        "schema or link validation",
+        "verification evidence"
+      ],
+      "research": [
+        "bounded question",
+        "source-backed context",
+        "findings and uncertainty",
+        "no implementation without a follow-up plan"
+      ]
+    },
+    "invariants": {
+      "planBeforeImplementation": true,
+      "humanApprovalAtEveryGate": true,
+      "verifyBeforeShip": true,
+      "upstreamChangesInvalidateDownstream": true,
+      "evidenceRequiredForCompletion": true,
+      "repairAttemptsPerFailure": 2,
+      "autoShip": false
+    }
+  },
   "adapters": {
     "claude": {
       "enabled": true
@@ -18,6 +163,10 @@
   },
   "project": {
     "name": "cypress-ai-agentic-test-development",
+    "laneId": "default",
+    "laneName": "Cypress Automation Boilerplate",
+    "laneKind": "e2e",
+    "repo": "cypress-ai-agentic-test-development",
     "architecture": "Config → Commands → Tests",
     "pattern": "command-first",
     "testRoot": "cypress",

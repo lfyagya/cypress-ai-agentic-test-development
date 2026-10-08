@@ -26,6 +26,8 @@ Task:
 - Prefer my answers over inventing. If I say unknown, leave optional fields out or record unknown in docs later — do not invent URLs, credentials, modules, or requirements.
 - Copy _template.json → harness/profiles/projects/<key>.json and fill:
   key, displayName, owner, adapter (cypress), language, projectName, repo, adapters enabled flags for claude/copilot/cursor/codex.
+- Ask where the requirements come from (tickets, Confluence, Figma, documentation, API spec) and fill `sources` with locations only. Delete the keys this project does not use; the PRD stage collects from these.
+- Ask which kinds of tests this project has (e2e, frontend, backend, functional, integration, regression, smoke, and so on). One kind in this repo: leave `lanes` out. Several: declare one lane per kind, each with its own adapter and safety, and compose with `--lane <id>`.
 - Omit the overrides block unless this project genuinely differs from adapter defaults.
 - Adapters: enable each AI tool the team actually uses. If I am unsure, leave claude and copilot enabled and cursor/codex disabled. Never disable all adapters.
 - Be accurate: Claude Code, Copilot, and Cursor can refuse violating writes through generated pre-tool hooks. Codex has no hook API and relies on `npm run verify` plus the pre-push hook; those floor checks also cover human edits and hook misses. See docs/architecture/cross-tool-configuration.md.
@@ -36,7 +38,7 @@ Task:
 - Do not create specs, commands, selectors, or evidence/requirements.json entries in this step.
 
 Then run (or tell me to run):
-  node harness/profiles/bin/compose-harness-config.mjs --profile harness/profiles/projects/<key>.json --out harness.config.json
+  node harness/profiles/bin/compose-harness-config.mjs --profile harness/profiles/projects/<key>.json --out harness.config.json   # add --lane <id> if the profile declares lanes
   npm run harness:sync
   npm run harness:check
   npm run harness:lock

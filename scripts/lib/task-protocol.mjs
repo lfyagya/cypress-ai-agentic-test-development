@@ -203,6 +203,10 @@ export function dependenciesReady(task, byId) {
   return { ready: blocked.length === 0, blocked };
 }
 
+// The gate documents a human approves, in pipeline order. harness/workflow-model.mjs declares the same
+// kinds on its stages; test-workflow-model.mjs fails if the two lists diverge.
+export const APPROVAL_KINDS = ["prd", "plan", "test-cases", "verification"];
+
 export function approveArtifact(task, kind, path, content, by, at) {
   if (!/[A-Za-z0-9]/.test(by ?? "")) {
     throw new Error("approval requires an approver identity");

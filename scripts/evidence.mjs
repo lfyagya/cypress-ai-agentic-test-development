@@ -263,16 +263,44 @@ function totals(tests) {
   };
 }
 
+// The static directory a spec glob starts from ("cypress/tests/**/*.cy.{js,ts}" -> "cypress/tests").
+// project.testRoot names the whole test tree, which also holds support code, so it is the wrong root.
+export function specRoot(specGlob, fallback) {
+  const segments = String(specGlob ?? "").split("/");
+  const wildcard = segments.findIndex((segment) => /[*?[\]{}]/.test(segment));
+  const fixed =
+    wildcard === -1 ? segments.slice(0, -1) : segments.slice(0, wildcard);
+  return fixed.filter(Boolean).join("/") || fallback;
+}
+
 export function buildEvidence({
   root = process.cwd(),
   framework,
   reportPath,
+  laneId,
   runId,
   now = new Date().toISOString(),
 }) {
   if (!["cypress", "playwright"].includes(framework)) {
     throw new Error("--framework must be cypress or playwright");
   }
+
+  const configPath = path.join(root, "harness.config.json");
+  const config = fs.existsSync(configPath) ? readJson(configPath) : null;
+  if (config && config.framework !== framework) {
+    throw new Error(
+      `--framework "${framework}" does not match harness.config.json framework "${config.framework}"`,
+    );
+  }
+  const configuredLaneId = config?.project?.laneId;
+  if (laneId && configuredLaneId !== laneId) {
+    throw new Error(
+      `--lane "${laneId}" does not match configured lane "${configuredLaneId ?? "<missing>"}"`,
+    );
+  }
+  const selectedLaneId = configuredLaneId ?? laneId ?? null;
+  const laneName = config?.project?.laneName ?? null;
+  const laneKind = config?.project?.laneKind ?? null;
 
   const evidenceRoot = path.join(root, "evidence");
   const requirements = validateRequirements(
@@ -283,10 +311,16 @@ export function buildEvidence({
   );
   const testRoot = path.join(
     root,
-    framework === "cypress" ? "cypress/tests" : "playwright/tests",
+    specRoot(
+      config?.project?.specGlob,
+      framework === "cypress" ? "cypress/tests" : "playwright/tests",
+    ),
   );
-  const testSuffix = framework === "cypress" ? ".cy.js" : ".spec.ts";
-  const testFiles = walkFiles(testRoot, (file) => file.endsWith(testSuffix));
+  const testFiles = walkFiles(testRoot, (file) =>
+    framework === "cypress"
+      ? /\.cy\.[cm]?[jt]sx?$/.test(file)
+      : /\.spec\.[cm]?[jt]sx?$/.test(file),
+  );
   const absoluteReport = path.resolve(root, reportPath);
 
   let tests = [];
@@ -312,6 +346,9 @@ export function buildEvidence({
   const summary = {
     runId: resolvedRunId,
     framework,
+    laneId: selectedLaneId,
+    laneName,
+    laneKind,
     executionStatus,
     tier: process.env.TEST_TIER ?? "all",
     trigger: process.env.RUN_TRIGGER ?? (process.env.CI ? "ci" : "local"),
@@ -360,6 +397,10 @@ export function buildEvidence({
 
   writeJson(path.join(evidenceRoot, "coverage-computed.json"), {
     runId: resolvedRunId,
+    framework,
+    laneId: selectedLaneId,
+    laneName,
+    laneKind,
     layers: {
       declaring: declared,
       of: coverage.length,
@@ -498,6 +539,7 @@ if (isMain) {
     const result = buildEvidence({
       framework: args.framework,
       reportPath: args.report,
+      laneId: args.lane,
       runId: args["run-id"],
     });
     console.log(
