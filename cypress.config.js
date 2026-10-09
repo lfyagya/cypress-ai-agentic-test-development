@@ -4,6 +4,7 @@ const path = require("node:path");
 const { plugin: cypressGrepPlugin } = require("@cypress/grep/plugin");
 const webpackPreprocessor = require("@cypress/webpack-preprocessor");
 const webpackConfig = require("./cypress/webpack.config.js");
+const { mergeCypressEnv } = require("./cypress/configs/app/merge-env.js");
 
 /**
  * Load environment-specific config from cypress/environments/cypress.env.{env}.json
@@ -93,8 +94,12 @@ module.exports = defineConfig({
       });
 
       // ── Environment config merge ──
+      // Tracked cypress/environments/*.json files are non-secret defaults.
+      // config.env already holds cypress.env.json, CYPRESS_* vars, and --env;
+      // those must win so a CI BASE_URL secret is not replaced by the public
+      // URL committed in the environment file (see mergeCypressEnv).
       const envConfig = loadEnvConfig(config.env.configFile);
-      config.env = { ...config.env, ...envConfig };
+      config.env = mergeCypressEnv(envConfig, config.env);
 
       // ── Base URL from env ──
       // A selected env file or CI-written cypress.env.json (config.env.baseUrl) overrides the
