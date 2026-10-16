@@ -198,6 +198,45 @@ try {
   assert.equal(playwright.summary.tests[0].requirement, requirement.id);
   assert.equal(playwright.metrics.metrics.M5.value, 1);
 
+  // A present JSON report with zero tests used to publish metrics.status "ready"
+  // while spec files existed — the same false-confidence class as a missing
+  // report, because evidence:build runs after a failed Cypress merge.
+  const emptyReportRoot = fixtureRoot();
+  roots.push(emptyReportRoot);
+  const emptyReport = path.join(emptyReportRoot, "empty-report.json");
+  fs.mkdirSync(
+    path.join(emptyReportRoot, "cypress", "tests", "checkout", "smoke"),
+    { recursive: true },
+  );
+  fs.writeFileSync(
+    path.join(
+      emptyReportRoot,
+      "cypress",
+      "tests",
+      "checkout",
+      "smoke",
+      "checkout-smoke.cy.js",
+    ),
+    "",
+  );
+  fs.writeFileSync(
+    emptyReport,
+    JSON.stringify({
+      stats: { start: "2026-01-01T00:00:00.000Z", duration: 0 },
+      results: [],
+    }),
+  );
+  assert.throws(
+    () =>
+      buildEvidence({
+        root: emptyReportRoot,
+        framework: "cypress",
+        reportPath: emptyReport,
+        runId: "empty-report-run",
+      }),
+    /0 tests/,
+  );
+
   const emptyRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "harness-evidence-empty-"),
   );

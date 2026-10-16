@@ -276,6 +276,15 @@ export function buildEvidence({
       framework === "cypress"
         ? normalizeCypress(report, activeRequirements)
         : normalizePlaywright(report, activeRequirements);
+    // A present-but-empty report is the same lie as a missing one: CI runs
+    // evidence:build under `if: always()`, so a crashed or zero-spec merge still
+    // writes index.json. Without this check, status becomes "ready" with zero
+    // tests and no traceability gaps — trustworthy-looking empty evidence.
+    if (tests.length === 0 && testFiles.length > 0) {
+      throw new Error(
+        `Report contains 0 tests while ${testFiles.length} test file(s) exist: ${reportPath}`,
+      );
+    }
     executionStatus = "completed";
     startedAt = report.stats?.start ?? report.stats?.startTime ?? now;
     durationMs = report.stats?.duration ?? 0;
