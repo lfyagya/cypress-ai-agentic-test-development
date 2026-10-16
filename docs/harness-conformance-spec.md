@@ -65,20 +65,21 @@ existing suite never touches one.**
 
 ---
 
-## 3. The conformance baseline — seven invariants
+## 3. The conformance baseline — eight invariants
 
 These are what make a project's setup _the harness_. None names a framework, a design pattern, a
 folder, or a package manager. **None of Laudio's five objections touches any of them.**
 
-| #      | Invariant                                                                                                                         | Why                                                                                                                                          | Verified by                                                      |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| **I1** | **One generated source of policy.** Composed from L2+L3+L4, carries a `GENERATED` marker, never hand-edited, drift-checked in CI. | Two owners of the same policy means the policy has no owner.                                                                                 | `harness:compose --verify` + drift check                         |
-| **I2** | **Rules reach the writer and the pipeline.** The same rule set is enforced at write-time and in CI.                               | A rule that only exists in a document is advice, and advice does not survive a deadline.                                                     | write-time hook + CI step, both present                          |
-| **I3** | **Declared equals enforced.** A rule declared `block` has a pattern behind it. A declared path is the path actually scanned.      | A rule declared blocking with no pattern is worse than an absent rule — the generated instructions advertise protection that does not exist. | `test-block-rules-enforced` · `test-config-paths-honest`         |
-| **I4** | **An independent read-only evaluator.** The gate that grades output cannot write files or run commands.                           | The builder must never grade its own work.                                                                                                   | `pre-merge-qa-gate`: `permissionMode: plan`, Read/Grep/Glob only |
-| **I5** | **Trust boundaries are never relaxed.** No credential literals. Smoke suites read-only. No production data.                       | These are breaches, not style.                                                                                                               | Tier 0 rules, non-disableable                                    |
-| **I6** | **Traceability.** Every test carries exactly one known requirement id, so coverage is computable.                                 | Three of 22 projects can measure coverage today. Without this the rollout has no evidence.                                                   | `one-requirement-tag`, enforcement ramped (§6.4)                 |
-| **I7** | **Evidence ledger.** Every gate verdict is backed by recorded command output.                                                     | A verdict nobody can reproduce is an opinion.                                                                                                | `evidence:record` / `evidence:build`                             |
+| #      | Invariant                                                                                                                                               | Why                                                                                                                                          | Verified by                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **I1** | **One generated source of policy.** Composed from L2+L3+L4, carries a `GENERATED` marker, never hand-edited, drift-checked in CI.                       | Two owners of the same policy means the policy has no owner.                                                                                 | `harness:compose --verify` + drift check                         |
+| **I2** | **Rules reach the writer and the pipeline.** The same rule set is enforced at write-time and in CI.                                                     | A rule that only exists in a document is advice, and advice does not survive a deadline.                                                     | write-time hook + CI step, both present                          |
+| **I3** | **Declared equals enforced.** A rule declared `block` has a pattern behind it. A declared path is the path actually scanned.                            | A rule declared blocking with no pattern is worse than an absent rule — the generated instructions advertise protection that does not exist. | `test-block-rules-enforced` · `test-config-paths-honest`         |
+| **I4** | **An independent read-only evaluator.** The gate that grades output cannot write files or run commands.                                                 | The builder must never grade its own work.                                                                                                   | `pre-merge-qa-gate`: `permissionMode: plan`, Read/Grep/Glob only |
+| **I5** | **Trust boundaries are never relaxed.** No credential literals. Smoke suites read-only. No production data.                                             | These are breaches, not style.                                                                                                               | Tier 0 rules, non-disableable                                    |
+| **I6** | **Traceability.** Every test carries exactly one known requirement id, so coverage is computable.                                                       | Three of 22 projects can measure coverage today. Without this the rollout has no evidence.                                                   | `one-requirement-tag`, enforcement ramped (§6.4)                 |
+| **I7** | **Evidence ledger.** Every gate verdict is backed by recorded command output.                                                                           | A verdict nobody can reproduce is an opinion.                                                                                                | `evidence:record` / `evidence:build`                             |
+| **I8** | **GSD delivery pipeline and task routing.** One canonical pipeline, its human gates, and task-specific completion contract reach every enabled AI tool. | A plan that skips verification, or a task type with no proof obligation, is not a reliable workflow.                                         | `workflow-model.mjs` + projection and `.planning/` check         |
 
 ### 3.1 I2 and advisory-only tools
 
@@ -89,19 +90,88 @@ write-time enforcement the tool cannot deliver.
 
 ---
 
-## 4. The variable surface — four dimensions
+## 4. The variable surface — four dimensions and one shared workflow
 
 Everything below is declared by the project. The engine adapts. None of it is negotiated.
 
-| Dim              | Owns                                                                                                    | Declared in                | Portfolio examples                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------- |
-| **D1 Framework** | Which rule _patterns_ apply                                                                             | L2 adapter, selected by L4 | Playwright · Cypress · Pytest                              |
-| **D2 Pattern**   | Which _architecture_ rules apply                                                                        | L3 pattern, selected by L4 | helper-first · command-first · POM · BDD+POM · data-driven |
-| **D3 Topology**  | Paths, folder layout, package manager, workspace membership, lint/type-check chain, CI provider         | L4                         | Laudio: yarn workspace, own `tsconfig`, GitHub Actions     |
-| **D4 Strategy**  | Auth strategy, test-data strategy, credential source, parallelism, retries, timeouts, test-id attribute | L4                         | Laudio: cached session, vault credentials                  |
+| Dim              | Owns                                                                                            | Declared in                            | Portfolio examples                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------- | ---------------------------------------------------------- |
+| **D1 Framework** | Which rule _patterns_ apply                                                                     | L2 adapter, selected per L4 lane       | Playwright · Cypress · future pytest adapter               |
+| **D2 Pattern**   | Which _architecture_ rules apply                                                                | L3 pattern, selected per L4 lane       | helper-first · command-first · POM · BDD+POM · data-driven |
+| **D3 Topology**  | Paths, folder layout, package manager, workspace membership, lint/type-check chain, CI provider | Shared L4 defaults plus lane overrides | yarn workspace, own `tsconfig`, GitHub Actions             |
+| **D4 Strategy**  | Auth strategy, test-data strategy, credential source, environment targets and mutation policy   | L4, safety per lane                    | cached session, vault credentials, read-only smoke         |
 
 Mapping Laudio's five objections: #1 → **D2**. #2, #3, #5 → **D3**. #4 → **D4**, already satisfied.
 Every one of them is data. **None of them is an engine change.**
+
+A project declares one profile and any number of uniquely named lanes. Each lane selects exactly
+one adapter and architecture pattern; common paths, wiring, and strategy may be overridden by lane
+without repeating the rest. The selected lane is explicit for composition and carried into
+configuration and evidence. Cypress and Playwright are the only actively enforced runner adapters
+in this release; pytest is a future adapter, not an implied capability.
+
+Lanes are open-ended: a project declares as many as it has kinds of tests, each with its own adapter,
+pattern, paths, and safety declaration. `kind` is any of `e2e`, `frontend`, `backend`, `functional`,
+`integration`, `regression`, `smoke`, `api`, `contract`, `component`, `performance`, `accessibility`,
+or `other` as the escape hatch, so nothing is limited to an end-to-end lane, a read-only production
+smoke lane, or an API lane. The test plan's formats (below) are organised the same way, and each plan
+section names the lane that owns it.
+
+The workflow is shared engine policy, not a per-project or per-lane copy. Composition writes the
+canonical workflow into `harness.config.json`; generated instructions project that same contract to
+all enabled AI tools; task control, the instructions, and conformance all read it from one definition
+(`harness/workflow-model.mjs`), so they cannot describe different workflows. Projects do not override
+it by editing their profile.
+
+It is a delivery pipeline with four human gates. A stage with a gate stops until a human approves its
+document; the approval is recorded as a content hash under the artifact kind shown, so editing an
+approved document invalidates the work built on it.
+
+| Stage                 | Document        | Inputs and standards                                                              | Gate (`approve --artifact`) |
+| --------------------- | --------------- | --------------------------------------------------------------------------------- | --------------------------- |
+| 1. **PRD**            | `PRD.md`        | Sources: tickets, Confluence, Figma, documentation, API                           | `prd`                       |
+| 2. **Test plan**      | `TEST-PLAN.md`  | Sections by format: backend, frontend, functional, integration, regression, smoke | `plan`                      |
+| 3. **Test cases**     | `TEST-CASES.md` | Specs, codebase, existing automation coverage; detailed, end to end               | `test-cases`                |
+| 4. **Implementation** | —               | Framework standard; well structured, reusable, maintainable, readable             | —                           |
+| 5. **Execution**      | —               | Focused tests, then impacted regression                                           | —                           |
+| 6. **Debugging**      | —               | Root cause from evidence; repair bounded                                          | —                           |
+| 7. **Evidence**       | —               | Runs recorded, every case linked to its requirement                               | —                           |
+| 8. **Validation**     | —               | Results reconciled against the approved documents by an independent reviewer      | `verification`              |
+| 9. **Release**        | —               | Release material prepared; a human decides and performs the release               | —                           |
+
+Documents live under `.planning/phases/<phase>/`. Every stage applies to every task and is scaled to
+its size, never skipped. Task types (feature, defect, refactor, test, docs/config, research) add their
+own proof obligations on top. Upstream changes invalidate downstream work, repeated repair is
+bounded, and automatic shipping is disabled.
+
+**Mechanical versus guidance.** Task control records all four approvals as hashes. `verify` requires
+the `plan` approval for every task and, for `automation-evidence` tasks (Cypress or Playwright
+work), the `prd` and `test-cases` approvals as well; an approved document that was edited afterwards
+blocks verification, and `task:check` in CI repeats the same checks. The implementation, execution,
+debugging, and validation ordering beyond those approvals is instruction-level and is checked by the
+independent evaluator.
+
+A profile may declare where its PRD material lives in an optional `sources` block (`tickets`,
+`confluence`, `figma`, `documentation`, `api`; each a string or list of strings naming a board, space,
+file, or spec URL — never a credential). It is validated, carried into `project.sources`, drift-checked
+by readiness, and restated to agents so they collect from real places and ask about the rest.
+
+The workflow points agents at `.planning/`, so `harness:sync` scaffolds it when absent —
+`PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, and `phases/` — and never rewrites an
+existing file: it is team-owned work state, not a projection, and drift checks ignore it. I8 reports a
+gap while any of it is missing. Plain markdown is enough; no external GSD install is required.
+
+Guidance is scoped by role. Agents that can write receive the full pipeline after their own role
+statement. The read-only evaluator receives an evidence-review and validation stanza listing the
+proof it must demand, so I4 holds: the gate is never told to write documents, implement, or release.
+
+**What lane `safety` enforces.** It is a declared policy, not a sandbox. Composition validates it
+(smoke and production-targeting lanes must be `read-only`), readiness checks that
+`harness.config.json` still matches the profile, and the generated instructions restate it to agents
+as a "Lane safety boundary" section. Mechanical blocking is limited to the Tier 0 smoke-read-only
+rule and the QA gate; `allowlisted` and `approved` writes are policy that a reviewer checks against
+the declaration. Do not describe a lane as technically prevented from writing unless a rule or
+credential scope actually prevents it.
 
 ---
 
@@ -199,9 +269,9 @@ indefinitely — the ratchet date is recorded in the profile.
 
 ## 7. The L4 profile — what a project authors
 
-The profile is the **only** file a project writes. Today's template is close but incomplete: it
-cannot express D2, D3 or a rule override, because composition reads `paths` and `rules` from the
-adapter baseline alone. Closing that is P2 work; this is the target contract.
+The project authors one profile. It can describe multiple governed lanes while shared defaults
+prevent repeated project facts. Composition selects an adapter from the lane, not from a legacy
+top-level framework field.
 
 ```jsonc
 {
@@ -210,14 +280,8 @@ adapter baseline alone. Closing that is P2 work; this is the target contract.
   "owner": "<a person, not a team>",
   "repo": "<path or URL>",
 
-  // D1 — framework
-  "adapter": "playwright",
   "language": "typescript",
-
-  // D2 — pattern. Selects which Tier 2 concerns apply.
-  "pattern": "bdd-pom",
-
-  // D3 — topology. Overrides adapter path defaults. Every declared root must exist.
+  // Shared D3/D4 defaults. Lane values below override these field-by-field.
   "paths": {
     "testRoot": "<their root>",
     "configRoot": "<theirs>",
@@ -237,6 +301,36 @@ adapter baseline alone. Closing that is P2 work; this is the target contract.
     "testData": "<fresh | seeded | cached-fixture>",
     "credentialSource": "vault",
   },
+  "lanes": [
+    {
+      "id": "ui-e2e",
+      "name": "UI E2E",
+      "kind": "e2e",
+      "adapter": "playwright",
+      "pattern": "bdd-pom",
+      "repo": "<path or URL>",
+      "safety": {
+        "targets": ["dev", "qa"],
+        "mutation": "allowlisted",
+        "allowedOperations": ["create test data"],
+      },
+    },
+    {
+      "id": "ui-smoke",
+      "name": "Production smoke",
+      "kind": "smoke",
+      "adapter": "cypress",
+      "pattern": "command-first",
+      "repo": "<path or URL>",
+      "paths": {
+        "testRoot": "<smoke tests>",
+        "configRoot": "<smoke config>",
+        "commandRoot": "<smoke commands>",
+        "specGlob": "<smoke tests/**/*.cy.js>",
+      },
+      "safety": { "targets": ["production"], "mutation": "read-only" },
+    },
+  ],
 
   // AI tools actually in use. At least one must be enabled.
   "adapters": { "claude": { "enabled": true }, "copilot": { "enabled": true } },
@@ -248,9 +342,11 @@ adapter baseline alone. Closing that is P2 work; this is the target contract.
 }
 ```
 
-**Composition must reject:** a Tier 0 override · a Tier 2 entry in `ruleOverrides` · a Tier 1
-downgrade with no reason · a `severity: off` · a declared path that does not exist on disk · a
-profile enabling no AI adapter.
+**Composition must reject:** unknown/duplicate lane IDs · implicit selection from a multi-lane
+profile · an adapter not supported by the current engine · unsafe smoke/production writes · a Tier 0
+override · a Tier 2 entry in `ruleOverrides` · a Tier 1 downgrade with no reason · a `severity: off`
+· an invalid path or wiring value · a profile enabling no AI adapter. GSD pipeline policy is
+engine-owned; config readiness and conformance reject missing or drifted workflow data.
 
 ### 7.1 Path derivation and its one risk
 
@@ -274,8 +370,8 @@ Five steps, no engine edits at any point.
 2. **Compose** — profile → `harness.config.json`, plus a report: _these rules are ON · these are OFF
    because `pattern=<x>` · these are downgraded for `<recorded reason>` · these two are
    non-negotiable_.
-3. **Conformance check** — does the project satisfy I1–I7? **Reports gaps; fixes nothing.** This is
-   the entire negotiation surface with a team: seven items, each defensible alone.
+3. **Conformance check** — does the project satisfy I1–I8? **Reports gaps; fixes nothing.** This is
+   the entire negotiation surface with a team: eight items, each defensible alone.
 4. **Install overlay** — §5, dry-run first.
 5. **Wire** — one script entry, one CI step, into the chain the project already runs.
 

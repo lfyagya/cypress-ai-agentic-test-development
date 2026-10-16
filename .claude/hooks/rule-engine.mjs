@@ -151,7 +151,8 @@ export function makeExtractToolChange(writeToolNames = DEFAULT_WRITE_TOOLS) {
       // Cursor Write uses `contents`; Claude/Copilot use `content` or `text`.
       return {
         filePath,
-        content: toolInput.contents || toolInput.content || toolInput.text || "",
+        content:
+          toolInput.contents || toolInput.content || toolInput.text || "",
       };
     }
 

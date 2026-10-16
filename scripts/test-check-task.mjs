@@ -36,6 +36,18 @@ assert.equal(
   "empty --id on a task/* dispatch branch must use GITHUB_REF_NAME",
 );
 assert.equal(
+  resolveTaskId(parseArgs(["--id", ""]), {
+    GITHUB_REF_NAME: "refs/heads/task/BAZ",
+  }),
+  "BAZ",
+  "a fully qualified Git ref must resolve to the task id",
+);
+assert.equal(
+  resolveTaskId(parseArgs(["--id", ""]), {}, "origin/task/QUX"),
+  "QUX",
+  "an origin-prefixed branch must resolve to the task id",
+);
+assert.equal(
   resolveTaskId(parseArgs(["--id"]), { GITHUB_HEAD_REF: "task/FOO" }),
   "FOO",
   "boolean --id must not resolve to evidence/tasks/true.json",

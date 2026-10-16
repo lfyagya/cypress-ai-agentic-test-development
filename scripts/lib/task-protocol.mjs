@@ -203,6 +203,10 @@ export function dependenciesReady(task, byId) {
   return { ready: blocked.length === 0, blocked };
 }
 
+// The gate documents a human approves, in pipeline order. harness/workflow-model.mjs declares the same
+// kinds on its stages; test-workflow-model.mjs fails if the two lists diverge.
+export const APPROVAL_KINDS = ["prd", "plan", "test-cases", "verification"];
+
 export function approveArtifact(task, kind, path, content, by, at) {
   if (!/[A-Za-z0-9]/.test(by ?? "")) {
     throw new Error("approval requires an approver identity");
@@ -230,6 +234,31 @@ export function approvalState(task, kind, path, content) {
     return { ok: false, reason: `${kind} changed after approval` };
   }
   return { ok: true, approval };
+}
+
+// The documents a human approves before the plan. A Cypress or Playwright task (automation-evidence)
+// cannot verify, or pass CI, without them; for other proof modes they are checked when approved.
+// Approved means unchanged: editing either document afterwards invalidates the work built on it.
+const GATE_DOCUMENTS = ["prd", "test-cases"];
+
+export function gateDocumentErrors(task, readDocument) {
+  const required = task.proofMode === "automation-evidence";
+  const errors = [];
+  for (const kind of GATE_DOCUMENTS) {
+    const approval = task.approvals?.[kind];
+    if (!approval) {
+      if (required) errors.push(`${kind} is not approved`);
+      continue;
+    }
+    const state = approvalState(
+      task,
+      kind,
+      approval.path,
+      readDocument(approval.path),
+    );
+    if (!state.ok) errors.push(state.reason);
+  }
+  return errors;
 }
 
 export function transition(task, to) {

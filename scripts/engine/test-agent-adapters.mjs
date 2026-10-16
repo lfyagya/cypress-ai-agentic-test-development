@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { GSD_WORKFLOW } from "../../harness/workflow-model.mjs";
 import {
   adapterEnabled,
   agentInstructions,
@@ -168,9 +169,16 @@ try {
     path.join(fixtureScripts, "templates.mjs"),
   );
   fs.copyFileSync(path.join(scriptDirectory, "sync.mjs"), path.join(fixtureScripts, "sync.mjs"));
+  // templates.mjs imports the engine models, so the sandbox carries every non-test one.
+  for (const file of fs.readdirSync(path.join(root, "harness"))) {
+    if (file.endsWith(".mjs") && !file.startsWith("test-")) {
+      fs.copyFileSync(path.join(root, "harness", file), path.join(fixture, "harness", file));
+    }
+  }
 
   const fixtureConfig = {
     version: 1,
+    workflow: structuredClone(GSD_WORKFLOW),
     framework: "cypress",
     adapters: {
       claude: { enabled: true },

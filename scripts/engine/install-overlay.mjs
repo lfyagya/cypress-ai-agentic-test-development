@@ -2,8 +2,8 @@
 /**
  * Install the harness into a repository that already has its own test suite.
  *
- *   node scripts/engine/install-overlay.mjs --target <repo> --profile <profile.json>
- *   node scripts/engine/install-overlay.mjs --target <repo> --profile <profile.json> --apply
+ *   node scripts/engine/install-overlay.mjs --target <repo> --profile <profile.json> --lane <id>
+ *   node scripts/engine/install-overlay.mjs --target <repo> --profile <profile.json> --lane <id> --apply
  *
  * This is the thing whose absence caused the whole exercise. `sync.mjs` writes only into its own
  * repo, so the harness could be cloned or forked but never *added* — and adopting a fork meant
@@ -25,6 +25,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, readJson } from "../lib/cli.mjs";
+import { laneModelIssues, selectLane } from "../../harness/lane-model.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE = path.resolve(HERE, "..", "..");
@@ -50,7 +51,9 @@ function manifest(framework) {
     "scripts/backfill-ci-evidence.mjs",
     "scripts/check-requirement-consistency.mjs",
     "harness/concerns.mjs",
+    "harness/lane-model.mjs",
     "harness/patterns.mjs",
+    "harness/workflow-model.mjs",
     "harness/engine-version.json",
     ".claude/hooks/rule-engine.mjs",
     ".claude/hooks/harness-config-gate.mjs",
@@ -146,10 +149,18 @@ if (targetRoot === SOURCE)
 
 const profile = readJson(path.resolve(profilePath));
 const framework = readJson(path.join(SOURCE, "harness.config.json")).framework;
-if (profile.adapter !== framework) {
+const profileIssues = laneModelIssues(profile);
+if (profileIssues.length > 0) fail(profileIssues.join("\n"));
+let lane;
+try {
+  lane = selectLane(profile, args.lane);
+} catch (error) {
+  fail(error.message);
+}
+if (lane.adapter !== framework) {
   fail(
-    `profile declares adapter "${profile.adapter}" but this source repo is the "${framework}" ` +
-      `adapter. Install from the boilerplate matching the profile's adapter.`,
+    `lane "${lane.id}" declares adapter "${lane.adapter}" but this source repo is the ` +
+      `"${framework}" adapter. Install from the boilerplate matching the selected lane.`,
   );
 }
 
@@ -215,6 +226,7 @@ const profileChanged =
 console.log(`[install] source   ${SOURCE}`);
 console.log(`[install] target   ${targetRoot}`);
 console.log(`[install] adapter  ${framework}`);
+console.log(`[install] lane     ${lane.id} (${lane.name})`);
 console.log(
   `[install] engine   ${sourceVersion ?? "unknown"}` +
     (targetVersion && targetVersion !== sourceVersion
@@ -224,7 +236,7 @@ console.log(
         : "  (fresh install)"),
 );
 console.log(
-  `[install] profile  ${profile.key} (pattern: ${profile.pattern ?? "adapter default"})`,
+  `[install] profile  ${profile.key} (pattern: ${lane.pattern ?? profile.pattern ?? "adapter default"})`,
 );
 console.log("");
 for (const [relative, kind] of writes)
@@ -289,6 +301,7 @@ fs.writeFileSync(
       engineVersion: sourceVersion,
       adapter: framework,
       profile: profile.key,
+      lane: lane.id,
       installed,
     },
     null,
@@ -336,7 +349,7 @@ console.log(`[install] CLAUDE.md: ${claudeAction}`);
 console.log("");
 console.log("Next, in the target repo:");
 console.log(
-  `  node harness/profiles/bin/compose-harness-config.mjs --profile ${profileTarget} --out harness.config.json`,
+  `  node harness/profiles/bin/compose-harness-config.mjs --profile ${profileTarget} --lane ${lane.id} --out harness.config.json`,
 );
 console.log(
   "  node scripts/engine/sync.mjs           # generate the AI-tool projections",

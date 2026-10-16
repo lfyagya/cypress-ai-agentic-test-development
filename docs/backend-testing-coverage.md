@@ -6,6 +6,10 @@ describes _what_ to prove, not how to write it in Cypress or Playwright.
 Applies once a project declares `profile.datastore` and requirements start carrying
 `layers: ["api", "service", "db"]`.
 
+For a reachable datastore, `credentialSource` names where a least-privilege credential is stored.
+Declare `readOnly` as a JSON boolean; write-capable access instead requires `writeApproval` to name
+the approving person. Never store the credential itself in the profile.
+
 ---
 
 ## 1. Six dimensions, reported separately

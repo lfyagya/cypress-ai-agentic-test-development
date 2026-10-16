@@ -7,6 +7,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { laneSafetyGuidance } from "../../harness/lane-model.mjs";
+import {
+  evaluatorGuidance,
+  sourcesGuidance,
+  workflowGuidance,
+  workflowIssues,
+} from "../../harness/workflow-model.mjs";
 
 export const RULES_START = "<!-- HARNESS:RULES:START -->";
 export const RULES_END = "<!-- HARNESS:RULES:END -->";
@@ -37,12 +44,35 @@ const COPILOT_TOOL_ALIASES = {
   Write: "edit",
 };
 
+// An agent that cannot write: the independent evaluator, whatever tool vocabulary a runtime uses.
+export function isReadOnlyAgent(agent) {
+  return (
+    agent.permissionMode === "plan" ||
+    agent.role === "EVALUATE" ||
+    !agent.tools.some((tool) => ["Write", "Edit", "Bash"].includes(tool))
+  );
+}
+
+// Workflow policy, where its PRD material lives, and (for lane-based profiles) the lane's declared
+// mutation boundary.
+function governance(config) {
+  return [
+    workflowGuidance(config.workflow),
+    sourcesGuidance(config.project?.sources, config.workflow),
+    laneSafetyGuidance(config.project),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function requireValue(condition, message) {
   if (!condition) throw new Error(`Invalid harness.config.json: ${message}`);
 }
 
 function validateConfig(config) {
   requireValue(config?.version === 1, "version must be 1");
+  const workflowProblems = workflowIssues(config.workflow);
+  requireValue(workflowProblems.length === 0, workflowProblems.join("; "));
   requireValue(
     SUPPORTED_FRAMEWORKS.has(config.framework),
     "framework must be cypress or playwright",
@@ -285,6 +315,8 @@ export function rulesBlock(config) {
       (rule) => `| \`${rule.id}\` | ${rule.why} | ${rule.enforcement} |`,
     ),
     "",
+    governance(config),
+    "",
     RULES_END,
   ].join("\n");
 }
@@ -338,6 +370,8 @@ Architecture: **${project.architecture}**. Read \`CLAUDE.md\` for the full frame
 
 ${ruleBullets(config)}
 
+${governance(config)}
+
 Edit and Write tool calls are checked by the generated repository hooks. CI rescans repository
 changes as the final backstop; shell commands are not represented as Edit or Write tool calls.
 
@@ -374,6 +408,8 @@ Architecture: **${project.architecture}**. Read \`CLAUDE.md\` for the full frame
 
 ${ruleBullets(config)}
 
+${governance(config)}
+
 \`preToolUse\` in \`.cursor/hooks.json\` refuses violating Write/StrReplace calls (exit code 2).
 Human edits and any miss still hit \`npm run verify\` / pre-push / CI — see
 \`docs/architecture/cross-tool-configuration.md\`.
@@ -408,6 +444,8 @@ framework contract is \`CLAUDE.md\`; application behavior is
 ## Non-negotiable rules
 
 ${ruleBullets(config)}
+
+${governance(config)}
 
 Codex has no write-time hook, so these rules are guidance. The enforcing gate is \`npm run verify\`
 (local + pre-push) and CI — see \`docs/architecture/cross-tool-configuration.md\`.
@@ -478,7 +516,11 @@ export function agentInstructions(repoRoot, config, agent) {
     .trim()
     .replaceAll("{{gateRepairLimit}}", String(config.loops.gateRepairLimit))
     .replaceAll("{{qaFoundations}}", foundations);
-  return `${body}${skillsSection(config, agent)}`;
+  // After the body so the role statement leads; the read-only evaluator gets its own stanza.
+  const guidance = isReadOnlyAgent(agent)
+    ? evaluatorGuidance(config.workflow)
+    : workflowGuidance(config.workflow);
+  return `${body}\n\n${guidance}${skillsSection(config, agent)}`;
 }
 
 export function claudeAgent(agent, instructions) {
@@ -500,10 +542,7 @@ export function claudeAgent(agent, instructions) {
 // Cursor subagents: .cursor/agents/*.md with name/description/model/readonly frontmatter.
 // EVALUATE is readonly so the gate cannot edit. Write refusal is project preToolUse, not agent YAML.
 export function cursorAgent(agent, instructions) {
-  const readOnly =
-    agent.permissionMode === "plan" ||
-    agent.role === "EVALUATE" ||
-    !agent.tools.some((tool) => ["Write", "Edit", "Bash"].includes(tool));
+  const readOnly = isReadOnlyAgent(agent);
   const frontmatter = [
     "---",
     `name: ${agent.name}`,

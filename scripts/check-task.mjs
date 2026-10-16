@@ -9,6 +9,7 @@ import {
   activeRequirementIds,
   approvalState,
   contentHash,
+  gateDocumentErrors,
   validateRequirementDigests,
   validateRequirementLinks,
   validateTask,
@@ -28,14 +29,12 @@ const ROOT = process.env.HARNESS_TASK_ROOT
 export function resolveTaskId(
   args,
   env = process.env,
-  branch = (env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || env.GIT_BRANCH || "").replace(
-    /^(refs\/heads\/|origin\/)/,
-    "",
-  ),
+  branch = env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || env.GIT_BRANCH || "",
 ) {
   const explicit = typeof args.id === "string" ? args.id.trim() : "";
   if (explicit) return explicit;
-  return branch.startsWith("task/") ? branch.slice(5) : "";
+  const normalizedBranch = branch.replace(/^(refs\/heads\/|origin\/)/, "");
+  return normalizedBranch.startsWith("task/") ? normalizedBranch.slice(5) : "";
 }
 
 /**
@@ -79,10 +78,16 @@ export function checkTask({
   id,
   root = ROOT,
   git = (args) =>
-    execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim(),
+    execFileSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim(),
 } = {}) {
   if (!id) throw new Error("--id is required (or use a task/<ID> branch)");
-  const task = readJson(file(path.join("evidence", "tasks", `${id}.json`), root));
+  const task = readJson(
+    file(path.join("evidence", "tasks", `${id}.json`), root),
+  );
   validateTask(task);
   if (task.status !== "verified")
     throw new Error(`task ${id} is ${task.status}, not verified`);
@@ -104,6 +109,10 @@ export function checkTask({
     fs.readFileSync(file(plan?.path, root), "utf8"),
   );
   if (!planState.ok) throw new Error(planState.reason);
+  const gateErrors = gateDocumentErrors(task, (relative) =>
+    fs.readFileSync(file(relative, root), "utf8"),
+  );
+  if (gateErrors.length) throw new Error(gateErrors.join("; "));
   if (task.proofMode !== "no-test") {
     if (!task.evidence)
       throw new Error(`task ${id} has no verification evidence`);
@@ -112,8 +121,10 @@ export function checkTask({
       throw new Error("task evidence changed after verification");
     }
   }
+  // Approved documents (plan, PRD, cases) are committed after verification, so they may change
+  // path-wise; their content is already pinned by the hash checks above.
   const allowed = new Set([
-    task.approvals.plan.path,
+    ...Object.values(task.approvals).map((approval) => approval.path),
     `evidence/tasks/${id}.json`,
   ]);
   if (task.evidence) allowed.add(task.evidence.path);

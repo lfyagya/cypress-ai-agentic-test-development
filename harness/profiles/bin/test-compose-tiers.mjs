@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONCERNS } from "../../concerns.mjs";
+import { GSD_WORKFLOW } from "../../workflow-model.mjs";
 import { compose, resolveRules } from "./compose-harness-config.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -145,6 +146,7 @@ const withBlocks = compose({
 });
 assert.equal(withBlocks.wiring.packageManager, "yarn");
 assert.equal(withBlocks.strategy.credentialSource, "vault");
+assert.deepEqual(withBlocks.workflow, GSD_WORKFLOW);
 assert.ok(
   !("wiring" in compose(profile({}))),
   "a profile declaring no wiring must not gain the key -- existing configs stay byte-identical",
@@ -179,6 +181,60 @@ for (const [block, expected, why] of [
 ]) {
   assert.throws(() => compose({ ...profile({}), ...block }), expected, why);
 }
+
+const multiLaneProfile = {
+  ...profile({
+    adapter: config.framework === "cypress" ? "playwright" : "cypress",
+    repo: "https://example.test/multi-lane",
+    paths: {
+      testRoot: "tests",
+      configRoot: "config",
+      commandRoot: "support",
+      specGlob:
+        config.framework === "cypress"
+          ? "tests/**/*.cy.ts"
+          : "tests/**/*.spec.ts",
+    },
+    wiring: {
+      packageManager: "npm",
+      workspacePackage: false,
+      verifyScript: "npm run verify",
+    },
+    strategy: {
+      auth: "cached-session",
+      testData: "fresh",
+      credentialSource: "ci-secret",
+    },
+  }),
+  lanes: [
+    {
+      id: "primary-e2e",
+      name: "Primary E2E",
+      kind: "e2e",
+      adapter: config.framework,
+      safety: { targets: ["qa"], mutation: "read-only" },
+    },
+    {
+      id: "secondary-smoke",
+      name: "Secondary smoke",
+      kind: "smoke",
+      adapter: config.framework,
+      safety: { targets: ["staging"], mutation: "read-only" },
+    },
+  ],
+};
+const composedLane = compose(
+  multiLaneProfile,
+  path.join(HERE, "..", "adapters"),
+  "primary-e2e",
+);
+assert.equal(composedLane.framework, config.framework);
+assert.equal(composedLane.project.laneId, "primary-e2e");
+assert.equal(
+  composedLane.project.laneKind,
+  "e2e",
+  "the selected lane, not the legacy profile.adapter, owns framework routing",
+);
 
 // 5. An adapter with no native pattern and a profile that declares none is an error, not a silent
 //    "no Tier 2 concerns apply".
