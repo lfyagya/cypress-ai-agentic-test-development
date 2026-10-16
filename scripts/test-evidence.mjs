@@ -287,6 +287,46 @@ try {
     /0 tests/,
   );
 
+  // Same guard, other adapter. It sits after the normalize branch so one check covers
+  // both, but normalizePlaywright reads a different report shape — a Playwright run
+  // that writes {suites: []} has to reach the throw too, or the adapter this engine
+  // was extracted to serve keeps the hole the Cypress side just closed.
+  const emptyPlaywrightRoot = fixtureRoot();
+  roots.push(emptyPlaywrightRoot);
+  const emptyPlaywrightReport = path.join(
+    emptyPlaywrightRoot,
+    "empty-report.json",
+  );
+  const emptyPlaywrightSpecDir = path.join(
+    emptyPlaywrightRoot,
+    "playwright",
+    "tests",
+    "checkout",
+    "smoke",
+  );
+  fs.mkdirSync(emptyPlaywrightSpecDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(emptyPlaywrightSpecDir, "checkout-smoke.spec.ts"),
+    "export {};\n",
+  );
+  fs.writeFileSync(
+    emptyPlaywrightReport,
+    JSON.stringify({
+      stats: { startTime: "2026-01-01T00:00:00.000Z", duration: 0 },
+      suites: [],
+    }),
+  );
+  assert.throws(
+    () =>
+      buildEvidence({
+        root: emptyPlaywrightRoot,
+        framework: "playwright",
+        reportPath: emptyPlaywrightReport,
+        runId: "empty-playwright-report-run",
+      }),
+    /0 tests/,
+  );
+
   const emptyRoot = fs.mkdtempSync(
     path.join(os.tmpdir(), "harness-evidence-empty-"),
   );
