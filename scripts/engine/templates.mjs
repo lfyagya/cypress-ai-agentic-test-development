@@ -21,7 +21,17 @@ export const GENERATED_AGENT_MARKER =
   "<!-- GENERATED FROM harness.config.json and harness/agents/. DO NOT EDIT. -->";
 export const GENERATED_HOOK_MARKER = "HARNESS_GENERATED_FROM";
 export const GENERATED_SKILL_MARKER = "HARNESS_GENERATED_SKILL_PROJECTION";
-export const KNOWN_ROLES = ["INTAKE", "BUILD", "DIAGNOSE", "EVALUATE"];
+export const KNOWN_ROLES = [
+  "INTAKE",
+  "GATHER",
+  "DISCOVER",
+  "CASES",
+  "BUILD",
+  "DIAGNOSE",
+  "EVALUATE",
+  "SHIP",
+  "MAINTAIN",
+];
 
 const SUPPORTED_FRAMEWORKS = new Set(["cypress", "playwright"]);
 const SUPPORTED_AGENT_EXTENSIONS = new Set([".md", ".agent.md"]);
