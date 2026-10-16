@@ -10,15 +10,15 @@ Day-to-day workflow: [`../START-HERE.md`](../START-HERE.md).
 
 ## 1. Correct relationship
 
-| Component | Responsibility |
-|---|---|
-| **Skill** | Reusable Cypress expertise (how) |
-| **Agent** | Lifecycle role, permissions, model, inputs, outputs (when / why / constraints) |
-| **Rule** | Persistent project policy (never / instead) |
-| **Hook** | Deterministic write-time enforcement (Claude / Copilot / Cursor block; Codex has none) |
-| **Command/script** | Executable operation (`npm run verify`, engine hooks) |
-| **Workflow** | CI enforcement (universal floor backstop) |
-| **Profile** | Project facts and enabled AI tools |
+| Component          | Responsibility                                                                         |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| **Skill**          | Reusable Cypress expertise (how)                                                       |
+| **Agent**          | Lifecycle role, permissions, model, inputs, outputs (when / why / constraints)         |
+| **Rule**           | Persistent project policy (never / instead)                                            |
+| **Hook**           | Deterministic write-time enforcement (Claude / Copilot / Cursor block; Codex has none) |
+| **Command/script** | Executable operation (`npm run verify`, engine hooks)                                  |
+| **Workflow**       | CI enforcement (universal floor backstop)                                              |
+| **Profile**        | Project facts and enabled AI tools                                                     |
 
 Example:
 
@@ -95,25 +95,25 @@ CLONE → npm ci → configure profile → COMPOSE → refresh skills canon → 
 `verify` on an empty new profile expects bootstrap. This repository's reference clone already has
 products specs (smoke + one e2e) — verify runs them.
 
-| Phase | Agent | Skills used |
-|---|---|---|
-| INTAKE | `cypress-intake` | `cypress-docs` |
-| BUILD | `cypress-generator` | `cypress-author`, `cypress-docs` |
-| EVALUATE | `pre-merge-qa-gate` (read-only) | `cypress-explain` |
-| DIAGNOSE | `cypress-debugger` | `cypress-author`, `cypress-explain`, `cypress-docs` |
-| SHIP | parent workflow (no agent) | — |
+| Phase    | Agent                           | Skills used                                         |
+| -------- | ------------------------------- | --------------------------------------------------- |
+| INTAKE   | `cypress-intake`                | `cypress-docs`                                      |
+| BUILD    | `cypress-generator`             | `cypress-author`, `cypress-docs`                    |
+| EVALUATE | `pre-merge-qa-gate` (read-only) | `cypress-explain`                                   |
+| DIAGNOSE | `cypress-debugger`              | `cypress-author`, `cypress-explain`, `cypress-docs` |
+| SHIP     | parent workflow (no agent)      | —                                                   |
 
 ---
 
 ## 4. Per-tool component matrix
 
-| Component | Claude | Copilot | Cursor | Codex |
-|---|---|---|---|---|
-| Instructions | `CLAUDE.md` | `copilot-instructions.md` | `.cursor/rules/harness.mdc` | `AGENTS.md` |
-| Agents | `.claude/agents/**` | `.github/agents/**` | `.cursor/agents/**` | roster in `AGENTS.md` |
-| Skills | `.claude/skills/**` | via `.agents/skills/**` | via `.agents/skills/**` | via `.agents/skills/**` |
-| Hooks | `settings.json` **blocks write** | `.github/hooks` **PreToolUse denies** | `.cursor/hooks.json` **preToolUse denies** | none |
-| Real gate | hook + floor | hook + floor | hook + floor | floor |
+| Component    | Claude                           | Copilot                               | Cursor                                     | Codex                   |
+| ------------ | -------------------------------- | ------------------------------------- | ------------------------------------------ | ----------------------- |
+| Instructions | `CLAUDE.md`                      | `copilot-instructions.md`             | `.cursor/rules/harness.mdc`                | `AGENTS.md`             |
+| Agents       | `.claude/agents/**`              | `.github/agents/**`                   | `.cursor/agents/**`                        | roster in `AGENTS.md`   |
+| Skills       | `.claude/skills/**`              | via `.agents/skills/**`               | via `.agents/skills/**`                    | via `.agents/skills/**` |
+| Hooks        | `settings.json` **blocks write** | `.github/hooks` **PreToolUse denies** | `.cursor/hooks.json` **preToolUse denies** | none                    |
+| Real gate    | hook + floor                     | hook + floor                          | hook + floor                               | floor                   |
 
 ---
 

@@ -65,6 +65,7 @@ NEVER  →  *.actions.js files or page-object wrappers                          
 NEVER  →  an auth-required spec without an auth call                               cy.ensureAuthenticated() in beforeEach(), or the module's own auth command plus the // @no-ensureAuthenticated pragma
 NEVER  →  a password, secret, API key or token assigned a literal string           cy.env([...]) reading cypress.env.json (gitignored) or a CI secret
 NEVER  →  POST/PUT/PATCH/DELETE in a smoke spec                                    read-only assertions; put mutations in the e2e tier
+NEVER  →  a SQL literal in a spec or command                                       a frozen entry from cypress/configs/db/** passed to cy.dbQuery()
 NEVER  →  it.only()/describe.only(), or a skip without a recorded quarantine       run focused tests only from the CLI; put // @quarantine ISSUE-123: reason directly above a deliberate skip
 NEVER  →  skip semantic locators without a reason                                  cy.findByRole(), cy.findByLabelText(), cy.findByText(), then cy.getByTestId()
 NEVER  →  use .eq(), .first() or .last() where a filter can identify the element   .filter(), .contains(), or .within() to disambiguate by content or ancestor
@@ -81,6 +82,7 @@ NEVER  →  a spec with no requirement tag, or more than one                    
 | `require-auth-command` | Session setup belongs in one place, not repeated per test. | Hook + CI |
 | `no-credential-literal` | Trust boundary. A committed credential is a breach, not a style issue. | Hook + CI |
 | `smoke-read-only` | Smoke runs against shared and production-like environments. | Hook + CI |
+| `no-sql-literal` | A query is the datastore contract. One schema change should mean one config edit, not a grep across specs. | Hook + CI |
 | `focused-or-quarantined-test` | A focused test can hide suite failures, while an unrecorded skip hides risk with no owner. | Hook + CI |
 | `locator-priority` | Semantic locators are more stable and accessible. | QA gate |
 | `narrow-before-index` | Index-based locators silently target the wrong element when the UI changes. | QA gate |

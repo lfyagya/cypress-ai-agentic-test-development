@@ -20,8 +20,8 @@ Filters, product detail, cart, and authentication remain out of scope.
 
 ## Actors and safety
 
-| Actor             | Allowed behavior                                                                                 | Preconditions                   | Denied behavior       |
-| ----------------- | ------------------------------------------------------------------------------------------------ | ------------------------------- | --------------------- |
+| Actor             | Allowed behavior                                                                                                | Preconditions                   | Denied behavior       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------- | --------------------- |
 | Anonymous visitor | Read `GET /api/productsList`; open `/products`; view product cards; `POST /api/searchProduct` (read-only query) | Public site reachable; no login | All mutation in smoke |
 
 All three active requirements are read-only and create no test data, so isolation and cleanup are not
@@ -29,10 +29,10 @@ applicable. Credentials, PII, and payment data remain forbidden.
 
 ## Verified states
 
-| Requirement       | Action                  | Expected state   | Observable evidence                                                                                      |
-| ----------------- | ----------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
-| `AE-PRODUCTS-001` | `GET /api/productsList` | Catalog returned | HTTP `200`; payload `responseCode: 200`; non-empty `products[]`; every product has `id`, `name`, `price` |
-| `AE-PRODUCTS-002` | Open `/products`        | Listing shown    | `All Products` heading; visible listing region; at least one card and visible non-empty product name     |
+| Requirement       | Action                    | Expected state   | Observable evidence                                                                                      |
+| ----------------- | ------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `AE-PRODUCTS-001` | `GET /api/productsList`   | Catalog returned | HTTP `200`; payload `responseCode: 200`; non-empty `products[]`; every product has `id`, `name`, `price` |
+| `AE-PRODUCTS-002` | Open `/products`          | Listing shown    | `All Products` heading; visible listing region; at least one card and visible non-empty product name     |
 | `AE-PRODUCTS-003` | `POST /api/searchProduct` | Matches returned | HTTP `200`; payload `responseCode: 200`; non-empty `products[]`; every product has `id`, `name`, `price` |
 
 ### API catalog {#api-catalog}

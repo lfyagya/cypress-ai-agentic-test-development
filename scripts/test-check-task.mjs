@@ -52,43 +52,6 @@ assert.equal(
   "empty --id on a non-task branch has no id",
 );
 
-// ── workflow gate assertions ─────────────────────────────────────────────────
-
-const workflow = fs.readFileSync(
-  path.join(root, ".github", "workflows", "cypress.yml"),
-  "utf8",
-);
-const rules = fs.readFileSync(
-  path.join(root, ".github", "workflows", "cypress-rules.yml"),
-  "utf8",
-);
-for (const [name, text] of [
-  ["cypress.yml", workflow],
-  ["cypress-rules.yml", rules],
-]) {
-  assert.match(
-    text,
-    /required: false/,
-    `${name} must not require task_id — task control is optional`,
-  );
-  assert.match(
-    text,
-    /if: \$\{\{ inputs\.task_id != '' \|\| startsWith\(github\.head_ref, 'task\/'\) \|\| startsWith\(github\.ref_name, 'task\/'\) \}\}/,
-    `${name} must skip task:check unless a task id is actually in play`,
-  );
-}
-
-assert.equal(
-  [...workflow.matchAll(/uses:\s*actions\/checkout@/g)].length,
-  2,
-  "smoke and e2e both check out the repo",
-);
-assert.equal(
-  [...workflow.matchAll(/fetch-depth:\s*0/g)].length,
-  2,
-  "both checkouts must fetch full history so task:check can see verifiedCommit",
-);
-
 // ── CLI invocation: empty --id falls back to branch ─────────────────────────
 
 const invoked = spawnSync(

@@ -37,7 +37,7 @@ Taxonomy is identical in the Playwright adapter: `guides/` for how-to, `referenc
 | ----- | -------- |
 | Profile configure prompt (adapters / compose) | [../harness/profiles/configure.prompt.md](../harness/profiles/configure.prompt.md) |
 | Project and module context templates | [application-intelligence](application-intelligence/README.md) |
-| Test plan → requirements registry | [application-intelligence/test-plan.md](application-intelligence/test-plan.md) |
+| Requirement authoring guide       | [application-intelligence/requirement-authoring-guide.md](application-intelligence/requirement-authoring-guide.md) |
 
 Application-specific context is created only after intake. The canonical requirement registry is
 `evidence/requirements.json`.

@@ -68,4 +68,4 @@ npm run verify            # empty profile: bootstrap; this repo's reference clon
 
 `output/` and any profile-report artifacts stay gitignored. There is **no** `build_project_profiles_report` script — this prompt + profile file is the configuration step.
 
-Next: [`../../docs/application-intelligence/test-plan.md`](../../docs/application-intelligence/test-plan.md) after INTAKE, or invoke `cypress-intake` per START-HERE.
+Next: [`../../docs/application-intelligence/requirement-authoring-guide.md`](../../docs/application-intelligence/requirement-authoring-guide.md) after INTAKE, or invoke `cypress-intake` per START-HERE.

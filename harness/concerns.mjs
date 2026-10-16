@@ -51,6 +51,15 @@ export const CONCERNS = {
     summary: "search by value before creating a new asset",
     why: "Duplicate owners cause one app change to need multiple fixes.",
   },
+  QUERY: {
+    tier: 1,
+    summary: "no datastore query literals outside config",
+    why:
+      "A query is the datastore's contract, exactly as a route is the HTTP contract: a schema " +
+      "change should have one owner, not a grep across specs. Distinct from ROUTE because the " +
+      "message and the config root differ, and because a query carries write capability a route " +
+      "does not. A project with no datastore never trips it — there is no query to place.",
+  },
   TRACE: {
     tier: 1,
     ratchet: true,

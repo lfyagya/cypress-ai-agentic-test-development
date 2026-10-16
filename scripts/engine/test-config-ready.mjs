@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
   CONFIGURE_RE,
+  datastoreIssues,
   evaluateConfigReady,
   lockProjectProfile,
 } from "./config-ready.mjs";
@@ -192,6 +193,47 @@ assert.equal(
     "write a login smoke test and use the module from harness.config.json",
   ).code,
   2,
+);
+
+// Datastore block. Absent is fine — most projects have no datastore access and lose nothing.
+assert.deepEqual(
+  datastoreIssues(undefined),
+  [],
+  "a profile with no datastore block must stay valid",
+);
+assert.deepEqual(
+  datastoreIssues({ driver: "none", access: "none" }),
+  [],
+  "an explicitly disabled datastore must be valid without a credential source",
+);
+assert.deepEqual(
+  datastoreIssues({
+    driver: "postgres",
+    access: "direct",
+    credentialSource: "DB_READONLY_URL",
+    readOnly: true,
+  }),
+  [],
+  "a read-only datastore naming its credential source must be valid",
+);
+assert.match(
+  datastoreIssues({ driver: "postgres", access: "direct", readOnly: true })[0],
+  /credentialSource is required/,
+  "a reachable datastore with no named credential source must be refused",
+);
+assert.match(
+  datastoreIssues({
+    driver: "mssql",
+    access: "both",
+    credentialSource: "DB_URL",
+  })[0],
+  /writeApproval/,
+  "write-capable datastore access must be approved or declared read-only",
+);
+assert.match(
+  datastoreIssues({ driver: "sqlite", access: "direct" })[0],
+  /driver must be one of/,
+  "an unsupported driver must be refused rather than silently accepted",
 );
 
 const here = evaluateConfigReady(ROOT);

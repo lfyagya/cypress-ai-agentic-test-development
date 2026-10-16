@@ -444,7 +444,7 @@ synthetic data creation and cleanup, and at least one module contract.
 
 The agent drafts; **a human promotes to `active`**. Nothing is built from a draft.
 
-Use [`application-intelligence/test-plan.md`](application-intelligence/test-plan.md) (prompt + field
+Use [`application-intelligence/requirement-authoring-guide.md`](application-intelligence/requirement-authoring-guide.md) (prompt + field
 rules) and [`_template/requirement.example.json`](application-intelligence/_template/requirement.example.json).
 The registry is only `evidence/requirements.json` — do not create a parallel test-plan tree.
 
@@ -776,23 +776,23 @@ every TypeScript spec. Full detail: [typescript-guide.md](guides/typescript-guid
 This guide is self-contained; the documents below are supporting detail, indexed in
 [docs/README.md](README.md).
 
-| When you need                              | Document                                                                           |
-| ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| TypeScript detail and the conversion path  | [typescript-guide.md](guides/typescript-guide.md)                                  |
-| Hook events, adding a rule, the allowlist  | [hooks-explainer.md](guides/hooks-explainer.md)                                    |
-| Writing custom commands                    | [support-commands-instructions.md](guides/support-commands-instructions.md)        |
-| The API config layer and intercepts        | [api-layer-guide.md](reference/api-layer-guide.md)                                 |
-| Why configs, commands, and tests are split | [test-organization.md](reference/test-organization.md)                             |
-| Framework standards in full                | [framework-standards.md](reference/framework-standards.md)                         |
-| The lifecycle contract as a spec           | [harness-lifecycle-spec.md](architecture/harness-lifecycle-spec.md)                |
-| How one policy reaches all four AI tools   | [cross-tool-configuration.md](architecture/cross-tool-configuration.md)            |
-| Adding or updating modules                 | [framework-maintenance-guide.md](guides/framework-maintenance-guide.md)            |
-| CI pipeline setup in detail                | [ci-cd-guide.md](guides/ci-cd-guide.md)                                            |
-| Project and module context templates       | [application-intelligence](application-intelligence/README.md)                     |
-| Test plan → requirements registry          | [application-intelligence/test-plan.md](application-intelligence/test-plan.md)     |
-| Profile configure prompt                   | [../harness/profiles/configure.prompt.md](../harness/profiles/configure.prompt.md) |
-| Why the architecture is what it is         | [decisions](decisions/README.md)                                                   |
-| Composing a config from a profile          | [harness/profiles/README.md](../harness/profiles/README.md)                        |
+| When you need                              | Document                                                                                                           |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| TypeScript detail and the conversion path  | [typescript-guide.md](guides/typescript-guide.md)                                                                  |
+| Hook events, adding a rule, the allowlist  | [hooks-explainer.md](guides/hooks-explainer.md)                                                                    |
+| Writing custom commands                    | [support-commands-instructions.md](guides/support-commands-instructions.md)                                        |
+| The API config layer and intercepts        | [api-layer-guide.md](reference/api-layer-guide.md)                                                                 |
+| Why configs, commands, and tests are split | [test-organization.md](reference/test-organization.md)                                                             |
+| Framework standards in full                | [framework-standards.md](reference/framework-standards.md)                                                         |
+| The lifecycle contract as a spec           | [harness-lifecycle-spec.md](architecture/harness-lifecycle-spec.md)                                                |
+| How one policy reaches all four AI tools   | [cross-tool-configuration.md](architecture/cross-tool-configuration.md)                                            |
+| Adding or updating modules                 | [framework-maintenance-guide.md](guides/framework-maintenance-guide.md)                                            |
+| CI pipeline setup in detail                | [ci-cd-guide.md](guides/ci-cd-guide.md)                                                                            |
+| Project and module context templates       | [application-intelligence](application-intelligence/README.md)                                                     |
+| Requirement authoring guide                | [application-intelligence/requirement-authoring-guide.md](application-intelligence/requirement-authoring-guide.md) |
+| Profile configure prompt                   | [../harness/profiles/configure.prompt.md](../harness/profiles/configure.prompt.md)                                 |
+| Why the architecture is what it is         | [decisions](decisions/README.md)                                                                                   |
+| Composing a config from a profile          | [harness/profiles/README.md](../harness/profiles/README.md)                                                        |
 
 ---
 

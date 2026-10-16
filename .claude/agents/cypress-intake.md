@@ -59,14 +59,14 @@ actually uses. Skip this phase for a brand-new repo with no tests.
 
 **Scan for signals** — grep and glob the test directory:
 
-| Signal | What to look for | Pattern it points to |
-|---|---|---|
-| `*.page.js / *.page.ts` files, imports from `pages/` | Page object classes | `pom` |
-| `*.feature` files, `step_definitions/` or `steps/` directory | Cucumber/Gherkin | `bdd-pom` |
-| `cy.*` custom commands, `cypress/support/commands/` | Command-first | `command-first` |
-| Helper classes injected via `test.extend` or base fixture | Helper-first | `helper-first` |
-| Parameterised tests driven by `*.json` / `*.csv` data files | Data-driven | `data-driven` |
-| `*.actions.js` / `*.actions.ts` files | Command-first or helper-first (action variant) | note as `command-first` divergence |
+| Signal                                                       | What to look for                               | Pattern it points to               |
+| ------------------------------------------------------------ | ---------------------------------------------- | ---------------------------------- |
+| `*.page.js / *.page.ts` files, imports from `pages/`         | Page object classes                            | `pom`                              |
+| `*.feature` files, `step_definitions/` or `steps/` directory | Cucumber/Gherkin                               | `bdd-pom`                          |
+| `cy.*` custom commands, `cypress/support/commands/`          | Command-first                                  | `command-first`                    |
+| Helper classes injected via `test.extend` or base fixture    | Helper-first                                   | `helper-first`                     |
+| Parameterised tests driven by `*.json` / `*.csv` data files  | Data-driven                                    | `data-driven`                      |
+| `*.actions.js` / `*.actions.ts` files                        | Command-first or helper-first (action variant) | note as `command-first` divergence |
 
 **Classify** — count how many spec files exhibit each signal:
 
@@ -94,7 +94,7 @@ reflect the detected pattern — verify with `npm run harness:check`.
    `docs/application-intelligence/<module>/module-context.md`. Trace business intent to routes,
    roles, states, API behavior, data lifecycle, observable outcomes, and known risks.
 3. Add only verified requirements to `evidence/requirements.json` (see
-   `docs/application-intelligence/test-plan.md`). Each active requirement needs a unique id, module,
+   `docs/application-intelligence/requirement-authoring-guide.md`). Each active requirement needs a unique id, module,
    title, acceptance criteria, preconditions, expected outcome, scenario Type, Priority, framework
    tier, and source.
 4. Present the proposed catalog ordered `P0` → `P1` → `P2`. The owner approves or corrects it. Leave
