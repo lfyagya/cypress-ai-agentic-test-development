@@ -254,8 +254,16 @@ export function buildEvidence({
     root,
     framework === "cypress" ? "cypress/tests" : "playwright/tests",
   );
-  const testSuffix = framework === "cypress" ? ".cy.js" : ".spec.ts";
-  const testFiles = walkFiles(testRoot, (file) => file.endsWith(testSuffix));
+  // Same extension surface as scripts/run-cypress.mjs. Matching only .cy.js / .spec.ts
+  // treated a TypeScript suite as empty: a missing report became status "ready"
+  // (zero tests, no traceability gaps) instead of failing. CI runs evidence:build
+  // with `if: always()`, so a failed or aborted Cypress run would publish
+  // trustworthy-looking empty evidence.
+  const specRe =
+    framework === "cypress"
+      ? /\.cy\.(?:m|c)?[jt]s$/i
+      : /\.spec\.(?:m|c)?[jt]s$/i;
+  const testFiles = walkFiles(testRoot, (file) => specRe.test(file));
   const absoluteReport = path.resolve(root, reportPath);
 
   let tests = [];

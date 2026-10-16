@@ -236,6 +236,32 @@ try {
       }),
     /invalid type/,
   );
+
+  // A TypeScript-only suite with no report must fail, not publish status "ready".
+  // Matching only .cy.js used to treat *.cy.ts as "no tests exist".
+  const tsOnlyRoot = fixtureRoot();
+  roots.push(tsOnlyRoot);
+  const tsSpecDir = path.join(
+    tsOnlyRoot,
+    "cypress",
+    "tests",
+    "checkout",
+    "smoke",
+  );
+  fs.mkdirSync(tsSpecDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(tsSpecDir, "checkout-smoke.cy.ts"),
+    "export {};\n",
+  );
+  assert.throws(
+    () =>
+      buildEvidence({
+        root: tsOnlyRoot,
+        framework: "cypress",
+        reportPath: "missing.json",
+      }),
+    /Report is missing while 1 test file/,
+  );
 } finally {
   for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
 }
