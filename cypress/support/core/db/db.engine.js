@@ -9,7 +9,11 @@
 /** The single task name a project must register in `cypress.config.js`. */
 export const DB_TASK = "db:query";
 
-const PARAM_RE = /:(\w+)/g;
+// Named `:params`, but not PostgreSQL `::casts` and not colons inside quoted literals.
+// `/:(\w+)/g` treated `COUNT(*)::int` and `'12:30:00'` as bind placeholders. The README tells a
+// project's `db:query` task to rewrite whatever this function returns (`:id` → `$1` / `?` / `@id`),
+// so those false names became real substitutions and destroyed the SQL the test was meant to check.
+const PARAM_TOKEN_RE = /'(?:[^']|'')*'|:(:)?(\w+)/g;
 
 export function assertQueryEntry(entry) {
   if (!entry?.name || !entry?.sql) {
@@ -34,7 +38,14 @@ export function assertQueryEntry(entry) {
  * concatenation turns a verification test into an injection vector against the database it checks.
  */
 export function parameterNames(sql) {
-  return [...new Set([...String(sql).matchAll(PARAM_RE)].map((m) => m[1]))];
+  const names = [];
+  const token = new RegExp(PARAM_TOKEN_RE.source, PARAM_TOKEN_RE.flags);
+  let match;
+  while ((match = token.exec(String(sql))) !== null) {
+    if (match[0].startsWith("'") || match[1]) continue;
+    names.push(match[2]);
+  }
+  return [...new Set(names)];
 }
 
 export function assertParamsSatisfied(entry, params) {
