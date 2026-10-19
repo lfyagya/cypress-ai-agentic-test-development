@@ -19,6 +19,7 @@ import {
   DB_TASK,
   assertParamsSatisfied,
   assertQueryEntry,
+  assertSmokeReadOnly,
 } from "./db.engine.js";
 
 Cypress.Commands.add("dbQuery", (entry, params = {}) => {
@@ -26,6 +27,9 @@ Cypress.Commands.add("dbQuery", (entry, params = {}) => {
   // Fail here rather than in the driver. An unbound parameter reaches most drivers as a null and
   // the query returns zero rows — a green test that proved nothing.
   assertParamsSatisfied(entry, params);
+  // `mutates` is otherwise documentation-only: the write-time SQL grep cannot see a query that
+  // lives in cypress/configs/db/**, which is exactly where no-sql-literal requires it to live.
+  assertSmokeReadOnly(entry, Cypress.spec?.relative);
   return cy.task(DB_TASK, { name: entry.name, sql: entry.sql, params });
 });
 

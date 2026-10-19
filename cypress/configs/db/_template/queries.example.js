@@ -14,8 +14,8 @@
  * - **Select the columns you assert.** `SELECT *` makes the test pass through a column rename that
  *   should have failed it.
  * - **`mutates` is declared, not inferred.** It documents intent and lets a reviewer see write
- *   capability without parsing SQL. Enforcement is separate: `smoke-read-only` refuses write SQL in
- *   a smoke spec at write time.
+ *   capability without parsing SQL. `cy.dbQuery` refuses `mutates: true` when the spec path is
+ *   under a `smoke/` directory — the write-time SQL grep cannot see a query that lives here.
  * - **No credentials here.** Connection details come from `profile.datastore.credentialSource`.
  *
  * The driver is not this file's business, and not the harness's: the project declares it in

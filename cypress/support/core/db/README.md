@@ -72,6 +72,11 @@ cy.dbRow(ORDERS_DB.FIND_ORDER_BY_ID, { id: orderId }).then((row) => {
 common false pass at this layer: the assertion never runs and the test goes green having proved the
 row's absence.
 
+`cy.dbQuery` also refuses `mutates: true` when `Cypress.spec.relative` is under a `smoke/` directory.
+The write-time `smoke-read-only` grep cannot see SQL that lives in `cypress/configs/db/**`, which is
+where `no-sql-literal` requires it. Without the runtime check, a smoke spec could delete rows on a
+shared environment by calling a config entry.
+
 ## Rules that apply here
 
 | Rule                | Effect                                                                   |
