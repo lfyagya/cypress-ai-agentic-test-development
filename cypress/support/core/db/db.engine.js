@@ -47,3 +47,25 @@ export function assertParamsSatisfied(entry, params) {
     );
   }
 }
+
+/**
+ * Smoke specs must not run mutating queries. `no-sql-literal` forbids writing the SQL in the spec,
+ * and `smoke-read-only` only greps SQL text in the spec file, so a correctly-architected write
+ * (`cy.dbQuery(ORDERS_DB.DELETE_*, …)` with SQL in `cypress/configs/db/**`) would otherwise reach
+ * the driver and delete rows on the shared environment smoke is allowed to target.
+ */
+export function isSmokeSpec(specRelativePath) {
+  return String(specRelativePath ?? "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .includes("smoke");
+}
+
+export function assertSmokeReadOnly(entry, specRelativePath) {
+  if (!entry?.mutates) return;
+  if (!isSmokeSpec(specRelativePath)) return;
+  throw new Error(
+    `query "${entry.name}" declares mutates: true and cannot run in a smoke spec. ` +
+      "Smoke tests must remain read-only at every layer; move the write to the e2e tier.",
+  );
+}
