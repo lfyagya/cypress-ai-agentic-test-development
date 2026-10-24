@@ -47,3 +47,35 @@ export function assertParamsSatisfied(entry, params) {
     );
   }
 }
+
+function renderAggregate(value) {
+  if (typeof value === "bigint") return `${value}n`;
+  if (value === undefined) return "undefined";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * COUNT/SUM cells must be a real number. Drivers disagree on type (pg bigint as
+ * a string, mysql2/mssql as a number), so the command normalises — but
+ * `Number(null)` and `Number("")` are 0, which would make a SUM over zero rows
+ * look like a real zero total and green the assertion.
+ */
+export function normalizeAggregate(value, queryName) {
+  const label = queryName || "aggregate";
+  if (value == null || value === "" || typeof value === "boolean") {
+    throw new Error(
+      `${label} returned a non-numeric aggregate: ${renderAggregate(value)}`,
+    );
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    throw new Error(
+      `${label} returned a non-numeric aggregate: ${renderAggregate(value)}`,
+    );
+  }
+  return numeric;
+}

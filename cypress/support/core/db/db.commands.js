@@ -19,6 +19,7 @@ import {
   DB_TASK,
   assertParamsSatisfied,
   assertQueryEntry,
+  normalizeAggregate,
 } from "./db.engine.js";
 
 Cypress.Commands.add("dbQuery", (entry, params = {}) => {
@@ -49,15 +50,9 @@ Cypress.Commands.add("dbCount", (entry, params = {}) => {
       values.length,
       `${entry.name} must select exactly one aggregate column`,
     ).to.eq(1);
-    const value = values[0];
     // Drivers disagree about the type of COUNT/SUM: node-postgres returns bigint as a string,
     // mysql2 returns a number, mssql returns a number. Normalise here rather than in every test,
-    // and reject anything that is not actually numeric instead of coercing NaN into an assertion.
-    const numeric = typeof value === "bigint" ? Number(value) : Number(value);
-    expect(
-      Number.isFinite(numeric),
-      `${entry.name} returned a non-numeric aggregate: ${JSON.stringify(value)}`,
-    ).to.be.true;
-    return numeric;
+    // and reject null/empty/non-numeric instead of letting Number(null) become 0.
+    return normalizeAggregate(values[0], entry.name);
   });
 });
