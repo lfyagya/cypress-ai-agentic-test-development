@@ -20,6 +20,9 @@ export {
   stubResponse,
   assertResponseTime,
   assertResponseFields,
+  WRITE_METHODS,
+  isSmokeSpec,
+  assertSmokeReadOnlyRequest,
 } from "./api.engine";
 
 // Side-effect imports — register Cypress commands

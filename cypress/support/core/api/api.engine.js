@@ -18,6 +18,32 @@ export const API_TIMEOUT = Object.freeze({
   SHORT: 5000,
 });
 
+/** HTTP methods the smoke-read-only rule forbids. Matched case-insensitively. */
+export const WRITE_METHODS = Object.freeze(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Smoke specs must not issue write requests. `smoke-read-only` only greps literals in the spec
+ * file (`cy.request("POST", …)` or `method: "DELETE"`), so a correctly-architected call
+ * (`cy.apiRequest(ORDERS_API.CANCEL)` with the method in `cypress/configs/api/**`) would
+ * otherwise reach the network and mutate a shared environment.
+ */
+export function isSmokeSpec(specRelativePath) {
+  return String(specRelativePath ?? "")
+    .replaceAll("\\", "/")
+    .split("/")
+    .includes("smoke");
+}
+
+export function assertSmokeReadOnlyRequest(apiEntry, specRelativePath) {
+  const method = String(apiEntry?.method ?? "").toUpperCase();
+  if (!WRITE_METHODS.includes(method)) return;
+  if (!isSmokeSpec(specRelativePath)) return;
+  throw new Error(
+    `API "${apiEntry.alias ?? apiEntry.endpoint ?? method}" uses ${method} and cannot run in a smoke spec. ` +
+      "Smoke tests must remain read-only; move the write to the e2e tier.",
+  );
+}
+
 export function getStatusCode(interception) {
   return interception.response?.statusCode ?? interception.response?.status;
 }
