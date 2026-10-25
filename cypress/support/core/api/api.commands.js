@@ -19,6 +19,7 @@ import {
   waitForAPIs,
   makeRequest,
   stubResponse,
+  assertSmokeReadOnlyRequest,
 } from "./api.engine.js";
 
 import "./schema.commands.js";
@@ -40,6 +41,8 @@ Cypress.Commands.add("apiWaitAll", (entries, options = {}) => {
 });
 
 Cypress.Commands.add("apiRequest", (apiEntry, body = null, options = {}) => {
+  // `method` lives in cypress/configs/api/**, which the write-time smoke-read-only grep cannot see.
+  assertSmokeReadOnlyRequest(apiEntry, Cypress.spec?.relative);
   return makeRequest(apiEntry, body, options);
 });
 
