@@ -17,6 +17,7 @@ export {
   waitForAPI,
   waitForAPIs,
   makeRequest,
+  requestUrlFromEndpoint,
   stubResponse,
   assertResponseTime,
   assertResponseFields,

@@ -89,12 +89,36 @@ export function waitForAPIs(entries, options = {}) {
 }
 
 /**
+ * Turn an API config endpoint into a cy.request URL.
+ *
+ * Config entries are shared between intercepts and requests. Intercepts use Cypress
+ * globs (`**\/api/payments**` in the API layer guide). Stripping from the first
+ * `*` or `?` turned that documented shape into `""`, so cy.request hit `baseUrl`
+ * — a 200 HTML homepage that looks like a successful API call when
+ * failOnStatusCode is false (the makeRequest default).
+ */
+export function requestUrlFromEndpoint(endpoint) {
+  if (typeof endpoint !== "string" || !endpoint.trim()) {
+    throw new Error("API entry must have a non-empty endpoint to request");
+  }
+  // Drop the leading intercept prefix first so the path survives the wildcard trim.
+  const url = endpoint.replace(/^\*\*\//, "").replace(/[*?].*$/, "");
+  if (!url) {
+    throw new Error(
+      `API endpoint "${endpoint}" is an intercept glob and cannot be used with apiRequest. ` +
+        "Give the config entry a concrete path or absolute URL.",
+    );
+  }
+  return url;
+}
+
+/**
  * Direct cy.request() wrapper using an API config entry.
  */
 export function makeRequest(apiEntry, body = null, options = {}) {
   const req = {
     method: apiEntry.method,
-    url: apiEntry.endpoint.replace(/[*?].*$/, ""),
+    url: requestUrlFromEndpoint(apiEntry.endpoint),
     failOnStatusCode: options.failOnStatusCode ?? false,
   };
   if (body) req.body = body;
