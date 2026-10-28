@@ -53,13 +53,32 @@ export function registerAllIntercepts(apiConfig, options = {}) {
 }
 
 /**
+ * Cypress registers intercepts with `.as("name")` and waits with `@name`.
+ * The documented command is `cy.apiWait("@paymentsList")`. Prefixing another
+ * `@` would wait for `@@paymentsList`, which was never registered, so every
+ * documented wait times out.
+ */
+export function resolveInterceptAlias(apiEntryOrAlias) {
+  const raw =
+    typeof apiEntryOrAlias === "string"
+      ? apiEntryOrAlias
+      : apiEntryOrAlias?.alias;
+  const alias = String(raw ?? "")
+    .replace(/^@+/, "")
+    .trim();
+  if (!alias) {
+    throw new Error(
+      "apiWait requires an intercept alias or an API entry with `alias`",
+    );
+  }
+  return alias;
+}
+
+/**
  * Wait for a single API call and optionally assert its status code.
  */
 export function waitForAPI(apiEntryOrAlias, options = {}) {
-  const alias =
-    typeof apiEntryOrAlias === "string"
-      ? apiEntryOrAlias
-      : apiEntryOrAlias.alias;
+  const alias = resolveInterceptAlias(apiEntryOrAlias);
   const expectedStatus =
     options.expectedStatus ??
     (typeof apiEntryOrAlias === "object"
@@ -81,7 +100,7 @@ export function waitForAPI(apiEntryOrAlias, options = {}) {
  * Wait for multiple APIs. Returns a map of alias → interception.
  */
 export function waitForAPIs(entries, options = {}) {
-  const aliases = entries.map((e) => (typeof e === "string" ? e : e.alias));
+  const aliases = entries.map((e) => resolveInterceptAlias(e));
   return cy.wait(
     aliases.map((a) => `@${a}`),
     { timeout: options.timeout ?? API_TIMEOUT.DEFAULT },
