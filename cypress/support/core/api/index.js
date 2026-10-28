@@ -16,6 +16,7 @@ export {
   registerAllIntercepts,
   waitForAPI,
   waitForAPIs,
+  resolveInterceptAlias,
   makeRequest,
   stubResponse,
   assertResponseTime,
