@@ -56,7 +56,7 @@ declare namespace Cypress {
     ensureVisible(): Chainable<Subject>;
 
     // --- Tables ---------------------------------------------------------------------------------
-    /** Returns the first row whose text contains `text`. */
+    /** Returns the first body row whose text contains `text`. */
     getTableRowByText(
       tableSelector: string,
       text: string,
