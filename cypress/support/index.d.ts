@@ -66,6 +66,14 @@ declare namespace Cypress {
       tableSelector: string,
       minCount?: number,
     ): Chainable<void>;
+    /**
+     * Asserts the column header's `aria-sort` matches `direction`.
+     * Accepts `"asc"` / `"ascending"` or `"desc"` / `"descending"` (case-insensitive).
+     */
+    assertTableColumnSorted(
+      colHeaderSelector: string,
+      direction: "asc" | "desc" | "ascending" | "descending",
+    ): Chainable<void>;
 
     // --- API ------------------------------------------------------------------------------------
     /** Registers an intercept for one API config entry, optionally stubbing the response. */
