@@ -5,8 +5,9 @@
  * cy.assertTableEmpty(tableSelector, emptyStateSelector)      — assert empty state visible.
  * cy.assertTableRowContains(rowSelector, columnIndex, text)   — assert a cell contains text.
  * cy.getTableRowByText(tableSelector, text)                   — get row containing text.
- * cy.assertTableColumnSorted(colHeaderSelector, direction)    — assert sort arrow direction.
+ * cy.assertTableColumnSorted(colHeaderSelector, direction)    — assert aria-sort (asc|desc).
  */
+import { ariaSortForDirection } from "./table.engine.js";
 
 Cypress.Commands.add("assertTableHasRows", (tableSelector, minCount = 1) => {
   cy.get(tableSelector)
@@ -38,7 +39,10 @@ Cypress.Commands.add("getTableRowByText", (tableSelector, text) => {
 Cypress.Commands.add(
   "assertTableColumnSorted",
   (colHeaderSelector, direction) => {
-    const ariaValue = direction === "asc" ? "ascending" : "descending";
-    cy.get(colHeaderSelector).should("have.attr", "aria-sort", ariaValue);
+    cy.get(colHeaderSelector).should(
+      "have.attr",
+      "aria-sort",
+      ariaSortForDirection(direction),
+    );
   },
 );
