@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { laneModelIssues, laneProfile, selectLane } from "./lane-model.mjs";
+import {
+  laneModelIssues,
+  laneProfile,
+  selectLane,
+  workspaceIssues,
+} from "./lane-model.mjs";
 
 const common = {
   key: "payments",
@@ -151,4 +156,95 @@ assert.match(
   /kind must be one of/,
 );
 
-console.log("test-lane-model: multi-lane and legacy cases passed");
+// pytest lanes are declarable (test_ files, pip); composing one needs an L2 adapter that compose names.
+assert.deepEqual(
+  laneModelIssues({
+    ...common,
+    lanes: [
+      {
+        ...everyKind.lanes[0],
+        adapter: "pytest",
+        paths: { specGlob: "tests/**/test_*.py" },
+        wiring: {
+          packageManager: "pip",
+          workspacePackage: false,
+          verifyScript: "pytest -q",
+        },
+      },
+    ],
+  }),
+  [],
+);
+assert.match(
+  laneModelIssues({
+    ...common,
+    lanes: [
+      {
+        ...everyKind.lanes[0],
+        adapter: "pytest",
+        paths: { specGlob: "tests/**/*.py" },
+      },
+    ],
+  }).join(),
+  /specGlob must use "test_" for the pytest adapter/,
+);
+
+// Multi-repo workspace, git-gate policy and gate markers: optional, validated, project data only.
+const lane = { ...everyKind.lanes[0], repo: "web-e2e" };
+const ws = {
+  ...common,
+  lanes: [lane],
+  workspace: {
+    repos: {
+      "web-e2e": { branch: "dev", access: "write" },
+      "web-src": {
+        branch: "main",
+        access: "read",
+        url: "git@example.test:web.git",
+      },
+    },
+  },
+  git: {
+    protectedBranches: ["main", "release/.+"],
+    secretFiles: [".env", ".env.*"],
+    blockedPaths: ["/reports/"],
+  },
+  gates: { markerPrefix: "ACME", ticketPattern: "\\b(ABC)-\\d+\\b" },
+};
+assert.deepEqual(
+  workspaceIssues(common),
+  [],
+  "single-repo profiles need none of it",
+);
+assert.deepEqual(workspaceIssues(ws), []);
+assert.match(
+  workspaceIssues({ ...ws, lanes: [{ ...lane, repo: "web-src" }] }).join(),
+  /is read-only in profile.workspace.repos; a lane writes tests/,
+);
+assert.match(
+  workspaceIssues({ ...ws, lanes: [{ ...lane, repo: "nowhere" }] }).join(),
+  /"nowhere" is not in profile.workspace.repos/,
+);
+assert.match(
+  workspaceIssues({
+    ...ws,
+    workspace: { repos: { x: { branch: "main", access: "admin" } } },
+  }).join(),
+  /access must be write or read/,
+);
+assert.match(
+  workspaceIssues({ ...ws, git: { protectedBranches: ["("] } }).join(),
+  /valid regular expressions/,
+);
+assert.match(
+  workspaceIssues({ ...ws, git: { forcePush: true } }).join(),
+  /not a known key/,
+);
+assert.match(
+  workspaceIssues({ ...ws, gates: { markerPrefix: "a.*" } }).join(),
+  /plain word/,
+);
+
+console.log(
+  "test-lane-model: multi-lane, pytest, workspace and legacy cases passed",
+);

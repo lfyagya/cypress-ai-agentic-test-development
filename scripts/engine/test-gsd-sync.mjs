@@ -176,10 +176,10 @@ try {
   const gate = read(".claude/agents/gate.md");
   assert.match(gate, /your role as the independent evaluator/);
   assert.doesNotMatch(gate, /required for every task/);
-  assert.match(gate, /never write a PRD, plan, or cases/);
+  assert.match(gate, /never write a PRD, scenarios, plan, or cases/);
   assert.doesNotMatch(
     gate,
-    /Gate:/,
+    /Gate G\d:/,
     "the evaluator is not handed the builder's gates",
   );
 

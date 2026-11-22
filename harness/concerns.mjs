@@ -27,6 +27,8 @@ export const CONCERNS = {
   },
   "SMOKE-RO": {
     tier: 0,
+    // Smoke suites are a test-lane construct; a dev lane's environment boundary is its lane safety.
+    teams: ["qa"],
     summary: "smoke suites stay read-only",
     why: "Smoke coverage runs against shared and production-like environments.",
   },
@@ -62,6 +64,8 @@ export const CONCERNS = {
   },
   TRACE: {
     tier: 1,
+    // Per-test requirement tags. Dev lanes trace through task records and the plan's behaviors instead.
+    teams: ["qa"],
     ratchet: true,
     summary: "exactly one known requirement id per test",
     why: "Without it, coverage is not computable and the rollout has no evidence.",
@@ -73,6 +77,23 @@ export const CONCERNS = {
     tier: 1,
     summary: "no focused tests; skipped tests need a recorded quarantine",
     why: "A focused test can hide suite failures, while an unrecorded skip hides risk with no owner.",
+  },
+  // Product-code concerns. Language-neutral, so the engine's own `source` adapter carries them for
+  // dev lanes; any test adapter may map them too.
+  "LINT-SUPPRESS": {
+    tier: 1,
+    summary: "no silent lint or type suppression",
+    why: "A suppression without a reason hides a real defect from every later reader and reviewer.",
+  },
+  "DEBUG-LEFTOVER": {
+    tier: 1,
+    summary: "no debugger statements or breakpoints in committed code",
+    why: "A leftover breakpoint hangs CI or a production process and was never meant to ship.",
+  },
+  "TODO-TICKET": {
+    tier: 1,
+    summary: "every TODO/FIXME names its ticket",
+    why: "A TODO with no ticket has no owner, so it is never done and never removed.",
   },
   "LOCATOR-PRIORITY": {
     tier: 1,
@@ -118,6 +139,10 @@ export const CONCERNS = {
     patterns: ["helper-first", "command-first"],
   },
 };
+
+/** True when a concern applies to lanes of this team (qa or dev); concerns without `teams` apply to both. */
+export const concernAppliesTo = (id, team) =>
+  (CONCERNS[id]?.teams ?? ["qa", "dev"]).includes(team);
 
 /** Every concern id, for validation and reporting. */
 export const CONCERN_IDS = Object.keys(CONCERNS);

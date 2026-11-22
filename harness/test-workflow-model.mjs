@@ -9,6 +9,9 @@ import {
   GSD_WORKFLOW,
   approvalKinds,
   evaluatorGuidance,
+  gatePoints,
+  gsdCapability,
+  pipelineFor,
   planningScaffold,
   sourcesGuidance,
   sourcesIssues,
@@ -30,6 +33,7 @@ assert.deepEqual(
   GSD_WORKFLOW.pipeline.map((s) => s.id),
   [
     "prd",
+    "scenarios",
     "test-plan",
     "test-cases",
     "implementation",
@@ -68,13 +72,76 @@ assert.deepEqual(stageOf("implementation").standards, [
   "maintainable",
   "readable",
 ]);
-// Gates: PRD, plan, and cases are approved before the next stage; validation before release.
-assert.deepEqual(approvalKinds(), [
-  "prd",
-  "plan",
-  "test-cases",
-  "verification",
+// Gates G0-G5: scope, scenarios, plan, cases, the implementation diff, and the evidence.
+assert.deepEqual(approvalKinds(), ["G0", "G1", "G2", "G3", "G4", "G5"]);
+// The GSD loop points each gate is checked at: the same points the FHF engine proved in production.
+assert.deepEqual(gatePoints(), [
+  { gate: "G0", point: "discuss:post" },
+  { gate: "G1", point: "plan:pre" },
+  { gate: "G2", point: "plan:post" },
+  { gate: "G3", point: "plan:post" },
+  { gate: "G4", point: "execute:wave:post" },
+  { gate: "G5", point: "ship:pre" },
 ]);
+assert.match(
+  GSD_WORKFLOW.gsd.version,
+  /^\d+\.\d+\.\d+$/,
+  "GSD Core is pinned to an exact release",
+);
+// The capability GSD installs is generated from the pipeline; the shipped file must be exactly that.
+const shipped = JSON.parse(
+  fs.readFileSync(
+    new URL(
+      `./capability/${GSD_WORKFLOW.gsd.capability}/capability.json`,
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+assert.deepEqual(
+  shipped,
+  gsdCapability(GSD_WORKFLOW, shipped.version),
+  "harness/capability is stale: regenerate it from gsdCapability()",
+);
+assert.equal(shipped.gates.length, 6);
+// Dev and QA run different stages under the same gate ids at the same GSD points, so the one installed
+// capability and the one phase ledger govern both teams.
+assert.deepEqual(
+  pipelineFor(GSD_WORKFLOW, "dev")
+    .filter((s) => s.approval)
+    .map((s) => ({ gate: s.approval, point: s.gatePoint })),
+  gatePoints(),
+);
+assert.deepEqual(
+  pipelineFor(GSD_WORKFLOW, "dev").map((s) => s.id),
+  [
+    "prd",
+    "design",
+    "plan",
+    "tests-first",
+    "implementation",
+    "verification",
+    "debugging",
+    "evidence",
+    "review",
+    "release",
+  ],
+);
+assert.equal(pipelineFor(GSD_WORKFLOW, "qa"), GSD_WORKFLOW.pipeline);
+assert.match(
+  workflowGuidance(GSD_WORKFLOW, "dev"),
+  /development pipeline[\s\S]*TESTS FIRST[\s\S]*Harness-Phase: red B-n/,
+);
+assert.match(
+  evaluatorGuidance(GSD_WORKFLOW, "dev"),
+  /EVIDENCE review and REVIEW only/,
+);
+assert.ok(shipped.gates.every((g) => g.blocking && g.onError === "halt"));
+assert.equal(
+  stageOf("validation").approval,
+  undefined,
+  "validation is the independent reviewer's, not a human gate",
+);
 assert.deepEqual(
   approvalKinds(),
   APPROVAL_KINDS,
@@ -100,7 +167,7 @@ assert.match(workflowIssues(changed).join("\n"), /canonical GSD workflow/);
 const guidance = workflowGuidance();
 assert.match(
   guidance,
-  /PRD -> TEST PLAN -> TEST CASES -> IMPLEMENTATION -> EXECUTION -> DEBUGGING -> EVIDENCE -> VALIDATION -> RELEASE/,
+  /REQUIREMENTS AND SCOPE -> SCENARIOS -> TEST PLAN -> TEST CASES -> IMPLEMENTATION -> EXECUTION -> DEBUGGING -> EVIDENCE -> VALIDATION -> RELEASE/,
 );
 assert.match(
   guidance,
@@ -114,12 +181,13 @@ assert.match(
   guidance,
   /Inputs: specs, codebase, existing automation coverage\./,
 );
-assert.match(guidance, /approve --artifact prd/);
-assert.match(guidance, /approve --artifact test-cases/);
+assert.match(guidance, /gates\.mjs approve --phase-dir <phase> G0/);
+assert.match(guidance, /GSD checks it at `execute:wave:post`/);
+assert.match(guidance, /GSD Core \d+\.\d+\.\d+ runs this pipeline/);
 assert.equal(
-  (guidance.match(/\*\*Gate:\*\*/g) ?? []).length,
-  4,
-  "exactly four stages are gates",
+  (guidance.match(/\*\*Gate G\d:\*\*/g) ?? []).length,
+  6,
+  "exactly six stages are gates",
 );
 assert.match(guidance, /mixed tasks/);
 assert.match(guidance, /defect:/);
@@ -129,7 +197,7 @@ assert.match(guidance, /Never auto-publish/);
 // The read-only evaluator is told what to demand, never to plan, execute, or ship.
 const evaluator = evaluatorGuidance();
 assert.match(evaluator, /EVIDENCE review and VALIDATION only/);
-assert.match(evaluator, /never write a PRD, plan, or cases/);
+assert.match(evaluator, /never write a PRD, scenarios, plan, or cases/);
 assert.match(evaluator, /every gate has a recorded human approval/);
 assert.doesNotMatch(evaluator, /Never auto-publish/);
 for (const type of Object.keys(GSD_WORKFLOW.taskTypes)) {

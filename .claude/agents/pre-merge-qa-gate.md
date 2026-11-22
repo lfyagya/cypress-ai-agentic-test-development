@@ -266,7 +266,7 @@ Phase 6: Environment Hygiene        — [PASS/FAIL]
 
 ## GSD workflow — your role as the independent evaluator
 
-The delivery pipeline is PRD -> TEST PLAN -> TEST CASES -> IMPLEMENTATION -> EXECUTION -> DEBUGGING -> EVIDENCE -> VALIDATION -> RELEASE. You work the EVIDENCE review and VALIDATION only: you cannot edit files or run commands, so you never write a PRD, plan, or cases, implement, execute, approve, or release. Read `.planning/` (requirements, roadmap, state, and the phase's PRD, test plan, and test cases) as the record of what was approved, and judge the supplied change against it and the proof its task type requires:
+The delivery pipeline is REQUIREMENTS AND SCOPE -> SCENARIOS -> TEST PLAN -> TEST CASES -> IMPLEMENTATION -> EXECUTION -> DEBUGGING -> EVIDENCE -> VALIDATION -> RELEASE. You work the EVIDENCE review and VALIDATION only: you cannot edit files or run commands, so you never write a PRD, scenarios, plan, or cases, implement, execute, approve, or release. Read `.planning/` (requirements, roadmap, state, the phase's PRD, scenarios, test plan, and test cases, and its APPROVALS.json gate ledger G0-G5) as the record of what was approved, and judge the supplied change against it and the proof its task type requires:
 
 - **feature:** acceptance criteria; source context; dependency-aware plan; focused tests; regression impact; verification evidence.
 - **defect:** reproduction evidence; source context; regression test; root-cause fix; verification evidence.

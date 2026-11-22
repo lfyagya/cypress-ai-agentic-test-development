@@ -18,11 +18,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { CONCERNS } from "../../harness/concerns.mjs";
+import { CONCERNS, concernAppliesTo } from "../../harness/concerns.mjs";
+import { isDeepStrictEqual } from "node:util";
 import {
+  gsdCapability,
   planningScaffold,
   workflowIssues,
 } from "../../harness/workflow-model.mjs";
+import { capabilityDir, gsdErrors } from "./install-gsd.mjs";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -47,6 +50,7 @@ try {
   process.exit(1);
 }
 const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
+const team = project?.laneTeam ?? "qa";
 
 // I1 — one generated source of policy, composed rather than hand-written, and provably reproducible
 // from its inputs.
@@ -140,12 +144,15 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
   try {
     const scripts = JSON.parse(read("package.json")).scripts ?? {};
     const found = Object.entries(scripts).find(([, command]) =>
-      /check-drift|validate-.*-rules|check:rules/.test(command),
+      /check-drift|validate-.*-rules|check:rules|check-rules/.test(command),
     );
     if (found) pipeline = `npm run ${found[0]}`;
   } catch {
     pipeline = null;
   }
+  // The engine's own checker is a pipeline entry point in every vendored repo.
+  if (!pipeline && exists("scripts/engine/check-rules.mjs"))
+    pipeline = "node scripts/engine/check-rules.mjs";
   const declared = config.wiring?.verifyScript;
   if (!pipeline && declared && !declared.startsWith("<")) pipeline = declared;
 
@@ -160,7 +167,9 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
       if (!/\.ya?ml$/.test(file)) continue;
       const text = fs.readFileSync(path.join(workflowDirectory, file), "utf8");
       const runsRules =
-        /check-drift|validate-.*-rules|check:rules|run verify/.test(text);
+        /check-drift|validate-.*-rules|check:rules|check-rules|run verify/.test(
+          text,
+        );
       const autoTrigger = text
         .split(/\r?\n/)
         .some((line) => /^\s*(pull_request|push):/.test(line));
@@ -284,7 +293,9 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
 
 // I5 — trust boundaries, never relaxed. Tier 0 must be present and blocking.
 {
-  const tier0 = Object.keys(CONCERNS).filter((id) => CONCERNS[id].tier === 0);
+  const tier0 = Object.keys(CONCERNS).filter(
+    (id) => CONCERNS[id].tier === 0 && concernAppliesTo(id, team),
+  );
   const problems = [];
   for (const concernId of tier0) {
     const owned = rules.filter((rule) => rule.concern === concernId);
@@ -313,7 +324,20 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
 // one is not.
 {
   const trace = rules.find((rule) => rule.concern === "TRACE");
-  if (!trace) {
+  if (team === "dev") {
+    // Dev lanes trace requirement -> planned behavior -> red/green commits through task records.
+    const traced =
+      exists("evidence/requirements.json") &&
+      exists("scripts/task-control.mjs");
+    record(
+      "I6",
+      "Traceability",
+      traced ? "ok" : "gap",
+      traced
+        ? "requirements trace to planned behaviors and their red/green commits through task records"
+        : "dev lanes trace through task records: evidence/requirements.json and scripts/task-control.mjs are required",
+    );
+  } else if (!trace) {
     record(
       "I6",
       "Traceability",
@@ -406,6 +430,28 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
     const unscaffolded = [...Object.keys(files), directory].filter(
       (relative) => !exists(relative),
     );
+    // Describing the pipeline is not running it: GSD Core must be installed at the pin, and its
+    // capability must block the loop at every gate.
+    let shipped;
+    try {
+      shipped = JSON.parse(
+        fs.readFileSync(
+          path.join(capabilityDir(root), "capability.json"),
+          "utf8",
+        ),
+      );
+    } catch {
+      shipped = null;
+    }
+    const runtime = (() => {
+      try {
+        return gsdErrors(root, { workflow: config.workflow });
+      } catch (e) {
+        return [
+          `cannot check GSD: ${String(e.message).split(String.fromCharCode(10))[0].trim()}`,
+        ];
+      }
+    })();
     if (unscaffolded.length > 0) {
       record(
         "I8",
@@ -413,12 +459,32 @@ const { project, rules = [], agents = [], adapters = {}, hooks = {} } = config;
         "gap",
         `GSD work state missing: ${unscaffolded.join(", ")} — run npm run harness:sync`,
       );
+    } else if (
+      !shipped ||
+      !isDeepStrictEqual(
+        shipped,
+        gsdCapability(config.workflow, shipped.version),
+      )
+    ) {
+      record(
+        "I8",
+        "GSD delivery pipeline and routing",
+        "gap",
+        "harness/capability/ is missing or does not match the pipeline's gates — re-vendor the engine",
+      );
+    } else if (runtime.length > 0) {
+      record(
+        "I8",
+        "GSD delivery pipeline and routing",
+        "gap",
+        `${runtime.join("; ")} — run node scripts/engine/install-gsd.mjs`,
+      );
     } else {
       record(
         "I8",
         "GSD delivery pipeline and routing",
         "ok",
-        "canonical GSD pipeline, its gates, and task-specific obligations are configured, projected, and scaffolded",
+        `GSD Core ${config.workflow.gsd.version} runs the canonical pipeline and blocks it at G0-G5; obligations projected and scaffolded`,
       );
     }
   }

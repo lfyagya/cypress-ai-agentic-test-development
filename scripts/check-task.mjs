@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, readJson } from "./lib/cli.mjs";
 import {
   activeRequirementIds,
+  approvalOf,
   approvalState,
   contentHash,
   gateDocumentErrors,
@@ -101,10 +102,10 @@ export function checkTask({
     task,
     readJson(file(path.join("evidence", "requirements.json"), root)),
   );
-  const plan = task.approvals?.plan;
+  const plan = approvalOf(task, "G2");
   const planState = approvalState(
     task,
-    "plan",
+    "G2",
     plan?.path,
     fs.readFileSync(file(plan?.path, root), "utf8"),
   );

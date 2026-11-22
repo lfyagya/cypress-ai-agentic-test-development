@@ -164,17 +164,20 @@ try {
   const fixtureScripts = path.join(fixture, "scripts", "engine");
   fs.mkdirSync(fixtureScripts, { recursive: true });
   fs.mkdirSync(path.join(fixture, "harness", "agents"), { recursive: true });
-  fs.copyFileSync(
-    path.join(scriptDirectory, "templates.mjs"),
-    path.join(fixtureScripts, "templates.mjs"),
-  );
-  fs.copyFileSync(path.join(scriptDirectory, "sync.mjs"), path.join(fixtureScripts, "sync.mjs"));
-  // templates.mjs imports the engine models, so the sandbox carries every non-test one.
-  for (const file of fs.readdirSync(path.join(root, "harness"))) {
-    if (file.endsWith(".mjs") && !file.startsWith("test-")) {
-      fs.copyFileSync(path.join(root, "harness", file), path.join(fixture, "harness", file));
-    }
-  }
+  // Copy sync.mjs and every relative module it reaches (templates, lane/workflow models, patterns…),
+  // so a new engine import cannot silently break this fixture again.
+  const repoRoot = path.resolve(scriptDirectory, "..", "..");
+  const copyWithImports = (absolute) => {
+    const target = path.join(fixture, path.relative(repoRoot, absolute));
+    if (fs.existsSync(target)) return;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(absolute, target);
+    for (const [, spec] of fs
+      .readFileSync(absolute, "utf8")
+      .matchAll(/from\s+"(\.{1,2}\/[^"]+)"/g))
+      copyWithImports(path.resolve(path.dirname(absolute), spec));
+  };
+  copyWithImports(path.join(scriptDirectory, "sync.mjs"));
 
   const fixtureConfig = {
     version: 1,

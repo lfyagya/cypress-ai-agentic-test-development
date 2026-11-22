@@ -122,6 +122,34 @@ try {
     !("wiring" in bare) && !("strategy" in bare),
     "a profile declaring no wiring or strategy must not gain the keys",
   );
+  for (const block of ["workspace", "git", "gates"])
+    assert.ok(!(block in bare), `an undeclared ${block} block stays absent`);
+
+  // Workspace, git and gates reach the config verbatim: the git gate and the gate ledger read them there.
+  const workspaced = {
+    ...profile,
+    workspace: {
+      repos: {
+        "https://example.test/payments": { branch: "dev", access: "write" },
+      },
+    },
+    git: { protectedBranches: ["main", "dev"], blockedPaths: ["/reports/"] },
+    gates: { markerPrefix: "PAY", ticketPattern: "\\bPAY-\\d+\\b" },
+  };
+  assert.throws(
+    () => compose(workspaced, adaptersDir, "smoke"),
+    /key must be a folder name/,
+    "workspace.repos keys are folders, so a URL-shaped repo is refused",
+  );
+  workspaced.repo = "payments-e2e";
+  workspaced.workspace.repos = {
+    "payments-e2e": { branch: "dev", access: "write" },
+    "payments-src": { branch: "main", access: "read" },
+  };
+  const multi = compose(workspaced, adaptersDir, "smoke");
+  assert.deepEqual(multi.workspace, workspaced.workspace);
+  assert.deepEqual(multi.git, workspaced.git);
+  assert.deepEqual(multi.gates, workspaced.gates);
   assert.equal(bare.project.laneId, "default");
   for (const block of ["wiring", "strategy"]) {
     for (const bad of [[], "yarn", 7]) {

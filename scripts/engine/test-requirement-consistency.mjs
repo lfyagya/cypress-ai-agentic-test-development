@@ -121,8 +121,8 @@ try {
   }
 
   // What a scanner needs to load, as a list rather than as whatever happened to be enough last
-  // time. The patterns module imports the L3 pattern layer, which imports nothing further; when
-  // that dependency grows, this list is the one place to extend.
+  // time. The patterns module imports the L3 pattern layer and rule-engine imports the concern
+  // registry; neither imports anything further. When that grows, this list is the one place to extend.
   const hooksDirectory = path.join(temporaryRoot, ".claude", "hooks");
   fs.mkdirSync(hooksDirectory, { recursive: true });
   for (const file of [`${framework}.patterns.mjs`, "rule-engine.mjs"]) {
@@ -132,7 +132,7 @@ try {
     );
   }
   fs.mkdirSync(path.join(temporaryRoot, "harness"), { recursive: true });
-  for (const file of ["patterns.mjs"]) {
+  for (const file of ["patterns.mjs", "concerns.mjs"]) {
     fs.copyFileSync(
       path.join(liveRoot, "harness", file),
       path.join(temporaryRoot, "harness", file),

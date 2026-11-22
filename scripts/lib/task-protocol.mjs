@@ -205,7 +205,30 @@ export function dependenciesReady(task, byId) {
 
 // The gate documents a human approves, in pipeline order. harness/workflow-model.mjs declares the same
 // kinds on its stages; test-workflow-model.mjs fails if the two lists diverge.
-export const APPROVAL_KINDS = ["prd", "plan", "test-cases", "verification"];
+export const APPROVAL_KINDS = ["G0", "G1", "G2", "G3", "G4", "G5"];
+
+// Engine < 1.0.0 recorded four named kinds. Records keep them: they are read through this map, never
+// rewritten, because a migrated hash would claim an approval nobody gave under the new name.
+export const LEGACY_APPROVAL_KINDS = {
+  prd: "G0",
+  plan: "G2",
+  "test-cases": "G3",
+  verification: "G5",
+};
+
+/** A kind as given on the command line (G2, or legacy `plan`) as its gate id; undefined if unknown. */
+export const approvalKind = (kind) =>
+  APPROVAL_KINDS.includes(kind) ? kind : LEGACY_APPROVAL_KINDS[kind];
+
+/** The recorded approval for a gate, under its id or the legacy name an older engine wrote. */
+export function approvalOf(task, kind) {
+  const approvals = task.approvals ?? {};
+  if (approvals[kind]) return approvals[kind];
+  const legacy = Object.keys(LEGACY_APPROVAL_KINDS).find(
+    (name) => LEGACY_APPROVAL_KINDS[name] === kind,
+  );
+  return legacy ? approvals[legacy] : undefined;
+}
 
 export function approveArtifact(task, kind, path, content, by, at) {
   if (!/[A-Za-z0-9]/.test(by ?? "")) {
@@ -222,7 +245,7 @@ export function approveArtifact(task, kind, path, content, by, at) {
 }
 
 export function approvalState(task, kind, path, content) {
-  const approval = task.approvals?.[kind];
+  const approval = approvalOf(task, kind);
   if (!approval) return { ok: false, reason: `${kind} is not approved` };
   if (approval.path !== path) {
     return {
@@ -236,16 +259,17 @@ export function approvalState(task, kind, path, content) {
   return { ok: true, approval };
 }
 
-// The documents a human approves before the plan. A Cypress or Playwright task (automation-evidence)
-// cannot verify, or pass CI, without them; for other proof modes they are checked when approved.
-// Approved means unchanged: editing either document afterwards invalidates the work built on it.
-const GATE_DOCUMENTS = ["prd", "test-cases"];
+// The documents a human approves around the plan: requirements (G0) and test cases (G3). A Cypress or
+// Playwright task (automation-evidence) cannot verify, or pass CI, without them; for other proof modes
+// they are checked when approved. Approved means unchanged: editing either afterwards invalidates the
+// work built on it.
+const GATE_DOCUMENTS = ["G0", "G3"];
 
 export function gateDocumentErrors(task, readDocument) {
   const required = task.proofMode === "automation-evidence";
   const errors = [];
   for (const kind of GATE_DOCUMENTS) {
-    const approval = task.approvals?.[kind];
+    const approval = approvalOf(task, kind);
     if (!approval) {
       if (required) errors.push(`${kind} is not approved`);
       continue;

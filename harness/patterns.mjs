@@ -52,6 +52,14 @@ export const PATTERNS = {
     // Step definitions are implementation, and they live outside testRoot in most BDD layouts.
     extraRoots: ["stepRoot"],
   },
+  source: {
+    // A dev-team pattern: only the engine's `source` adapter resolves it, and test lanes may not select it.
+    team: "dev",
+    description:
+      "Product source with its own tests (dev lanes). The project's lint, type-check and test commands are the standard; the engine adds the language-neutral rules.",
+    codeKinds: ["source", "test"],
+    extraRoots: ["sourceRoot"],
+  },
   "data-driven": {
     description:
       "Fixture- or table-driven cases over a shared implementation layer.",
@@ -61,6 +69,9 @@ export const PATTERNS = {
 };
 
 export const PATTERN_IDS = Object.keys(PATTERNS);
+/** Patterns a lane of this team may select: test architectures for qa, product source for dev. */
+export const patternsForTeam = (team) =>
+  PATTERN_IDS.filter((id) => (PATTERNS[id].team ?? "qa") === team);
 
 export function loadPattern(pattern) {
   const found = PATTERNS[pattern];

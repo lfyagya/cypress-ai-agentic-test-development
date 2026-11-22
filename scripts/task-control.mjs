@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, readJson } from "./lib/cli.mjs";
 import {
   APPROVAL_KINDS,
+  LEGACY_APPROVAL_KINDS,
   activeRequirementIds,
+  approvalKind,
   approvalState,
   approveArtifact,
   contentHash,
@@ -34,7 +36,7 @@ function usage() {
   console.error(`Usage:
   task-control.mjs new --id <id> --requirement <id[,id]> --proof-mode <source-tdd|automation-evidence|no-test> [--reason <text>]
   task-control.mjs claim --id <id> --owner <name> --worktree <absolute-path> [--branch <name>]
-  task-control.mjs approve --id <id> --artifact <prd|plan|test-cases|verification> --file <repo-relative-path> --by <name>
+  task-control.mjs approve --id <id> --artifact <G0|G1|G2|G3|G4|G5> --file <repo-relative-path> --by <name>
   task-control.mjs attach-evidence --id <id> --file <repo-relative-path>
   task-control.mjs verify --id <id> --plan <repo-relative-path>
   task-control.mjs land --id <id> --merge <sha>
@@ -168,8 +170,11 @@ function commandClaim(args) {
 
 function commandApprove(args) {
   const task = loadTask(requireId(args));
-  if (!APPROVAL_KINDS.includes(args.artifact)) {
-    throw new Error(`--artifact must be one of ${APPROVAL_KINDS.join(", ")}`);
+  const kind = approvalKind(args.artifact);
+  if (!kind) {
+    throw new Error(
+      `--artifact must be one of ${APPROVAL_KINDS.join(", ")} (legacy ${Object.keys(LEGACY_APPROVAL_KINDS).join(", ")} still accepted)`,
+    );
   }
   if (typeof args.file !== "string" || typeof args.by !== "string") {
     throw new Error("--file and --by are required");
@@ -177,14 +182,14 @@ function commandApprove(args) {
   const artifact = taskArtifactFile(task, args.file);
   const approved = approveArtifact(
     task,
-    args.artifact,
+    kind,
     artifact.relative,
     fs.readFileSync(artifact.absolute, "utf8"),
     args.by.trim(),
     new Date().toISOString(),
   );
   saveTask(approved);
-  console.log(`[task] approved ${args.artifact} for ${task.id}`);
+  console.log(`[task] approved ${kind} for ${task.id}`);
 }
 
 function commandAttachEvidence(args) {
@@ -359,7 +364,7 @@ function commandVerify(args) {
   const plan = taskArtifactFile(task, args.plan);
   const planApproval = approvalState(
     task,
-    "plan",
+    "G2",
     plan.relative,
     fs.readFileSync(plan.absolute, "utf8"),
   );

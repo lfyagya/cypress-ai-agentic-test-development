@@ -1,0 +1,114 @@
+{
+  "id": "qa-harness",
+  "role": "feature",
+  "version": "1.0.0",
+  "title": "QA harness gates",
+  "description": "The QA harness human approval gates G0-G5 as blocking GSD loop gates. A gate passes only while its approved artifacts still hash the same.",
+  "tier": "full",
+  "requires": [],
+  "engines": {
+    "gsd": ">=1.14.0"
+  },
+  "runtimeCompat": {
+    "supported": ["*"],
+    "unsupported": []
+  },
+  "skills": [],
+  "agents": [],
+  "hooks": [],
+  "config": {
+    "workflow.harness_gates": {
+      "type": "boolean",
+      "default": true,
+      "description": "Block the GSD loop until the QA harness approval gates (G0-G5) hold for the phase."
+    }
+  },
+  "steps": [],
+  "contributions": [
+    {
+      "point": "discuss:pre",
+      "into": "orchestrator",
+      "fragment": {
+        "inline": "QA harness: follow the \"GSD workflow — required for every task\" section of CLAUDE.md (or AGENTS.md). Each approval gate is a checkpoint:human-verify with gate=\"blocking-human\"; show the artifacts and the `node scripts/gates.mjs card --phase-dir <phase>` output, then wait. An agent never approves a gate."
+      },
+      "produces": [],
+      "consumes": [],
+      "when": "workflow.harness_gates",
+      "onError": "halt"
+    }
+  ],
+  "gates": [
+    {
+      "point": "discuss:post",
+      "check": {
+        "predicate": {
+          "kind": "command-exit-zero",
+          "command": "node scripts/gates.mjs check --phase-dir \"${PHASE_DIR}\" --need G0"
+        }
+      },
+      "when": "workflow.harness_gates",
+      "blocking": true,
+      "onError": "halt"
+    },
+    {
+      "point": "plan:pre",
+      "check": {
+        "predicate": {
+          "kind": "command-exit-zero",
+          "command": "node scripts/gates.mjs check --phase-dir \"${PHASE_DIR}\" --need G1"
+        }
+      },
+      "when": "workflow.harness_gates",
+      "blocking": true,
+      "onError": "halt"
+    },
+    {
+      "point": "plan:post",
+      "check": {
+        "predicate": {
+          "kind": "command-exit-zero",
+          "command": "node scripts/gates.mjs check --phase-dir \"${PHASE_DIR}\" --need G2"
+        }
+      },
+      "when": "workflow.harness_gates",
+      "blocking": true,
+      "onError": "halt"
+    },
+    {
+      "point": "plan:post",
+      "check": {
+        "predicate": {
+          "kind": "command-exit-zero",
+          "command": "node scripts/gates.mjs check --phase-dir \"${PHASE_DIR}\" --need G3"
+        }
+      },
+      "when": "workflow.harness_gates",
+      "blocking": true,
+      "onError": "halt"
+    },
+    {
+      "point": "execute:wave:post",
+      "check": {
+        "predicate": {
+          "kind": "command-exit-zero",
+          "command": "node scripts/gates.mjs check --phase-dir \"${PHASE_DIR}\" --need G4"
+        }
+      },
+      "when": "workflow.harness_gates",
+      "blocking": true,
+      "onError": "halt"
+    },
+    {
+      "point": "ship:pre",
+      "check": {
+        "predicate": {
+          "kind": "command-exit-zero",
+          "command": "node scripts/gates.mjs check --phase-dir \"${PHASE_DIR}\" --need G5"
+        }
+      },
+      "when": "workflow.harness_gates",
+      "blocking": true,
+      "onError": "halt"
+    }
+  ]
+}

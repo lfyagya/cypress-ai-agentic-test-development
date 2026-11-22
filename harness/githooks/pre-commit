@@ -1,0 +1,12 @@
+#!/bin/sh
+# Harness git gate (commit). git fires this for every tool and every human; see scripts/engine/git-gate.mjs.
+# Point a repo at it with: git config core.hooksPath <project>/harness/githooks
+# The gate is found next to this hook, not inside the repo that fired it, so a workspace's lane clones
+# use the workspace's gate. A missing gate blocks: a hook path set on purpose must not silently allow.
+here="$(cd "$(dirname "$0")" && pwd)"
+gate="$here/../../scripts/engine/git-gate.mjs"
+if [ ! -f "$gate" ]; then
+  echo "git-gate: $gate is missing; blocked (re-vendor the harness, or unset core.hooksPath)" >&2
+  exit 1
+fi
+exec node "$gate" commit
