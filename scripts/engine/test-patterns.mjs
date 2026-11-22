@@ -14,6 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   PATTERN_IDS,
+  patternsForTeam,
   codeSuffixesFor,
   loadPattern,
   scanRootsFor,
@@ -53,7 +54,7 @@ const KIND_SUFFIX =
 
 // 1. Every declared pattern resolves to a non-empty code scope on this adapter. A pattern that
 //    resolves to nothing would silently disable every implementation rule.
-for (const pattern of PATTERN_IDS) {
+for (const pattern of patternsForTeam("qa")) {
   const suffixes = codeSuffixesFor(pattern, KIND_SUFFIX);
   assert.ok(
     suffixes.length > 0,

@@ -3,8 +3,13 @@
   "version": 1,
   "framework": "cypress",
   "workflow": {
-    "version": 1,
+    "version": 2,
     "model": "gsd",
+    "gsd": {
+      "package": "@opengsd/gsd-core",
+      "version": "1.14.0",
+      "capability": "qa-harness"
+    },
     "planningRoot": ".planning",
     "artifacts": {
       "project": "PROJECT.md",
@@ -16,7 +21,7 @@
     "pipeline": [
       {
         "id": "prd",
-        "title": "PRD",
+        "title": "Requirements and scope",
         "artifact": "PRD.md",
         "sources": [
           "tickets",
@@ -25,8 +30,17 @@
           "documentation",
           "api"
         ],
-        "does": "Collect the product requirements from every declared source and reconcile them into one PRD. Record conflicts and gaps between sources instead of resolving them silently.",
-        "approval": "prd"
+        "does": "Collect the product requirements from every declared source and reconcile them into one PRD that fixes the scope. Record conflicts and gaps between sources instead of resolving them silently.",
+        "approval": "G0",
+        "gatePoint": "discuss:post"
+      },
+      {
+        "id": "scenarios",
+        "title": "Scenarios",
+        "artifact": "SCENARIOS.md",
+        "does": "From the approved scope, list the happy, negative, and edge scenarios. Each one cites its acceptance criterion and the source that shows the behavior.",
+        "approval": "G1",
+        "gatePoint": "plan:pre"
       },
       {
         "id": "test-plan",
@@ -40,8 +54,9 @@
           "regression",
           "smoke"
         ],
-        "does": "From the approved PRD, plan the testing in sections by format. For each section say what it covers, which lane owns it, what is out of scope, and the environment and data it needs.",
-        "approval": "plan"
+        "does": "From the approved scenarios, plan the testing in sections by format. For each section say what it covers, which lane owns it, what is out of scope, and the environment and data it needs.",
+        "approval": "G2",
+        "gatePoint": "plan:post"
       },
       {
         "id": "test-cases",
@@ -53,7 +68,8 @@
           "existing automation coverage"
         ],
         "does": "From the approved plan, write detailed cases that cover each flow end to end. Read the specs and the code, and check existing automation first: mark every case new, extended, or already covered, and never duplicate coverage.",
-        "approval": "test-cases"
+        "approval": "G3",
+        "gatePoint": "plan:post"
       },
       {
         "id": "implementation",
@@ -65,33 +81,118 @@
           "maintainable",
           "readable"
         ],
-        "does": "Implement only approved cases, following the framework's architecture and rules. Reuse existing commands, helpers, and fixtures before adding new ones."
+        "does": "Implement only approved cases, following the framework's architecture and rules. Reuse existing commands, helpers, and fixtures before adding new ones. A human approves the exact diff, every changed file, before any test runs against it.",
+        "approval": "G4",
+        "gatePoint": "execute:wave:post"
       },
       {
         "id": "execution",
         "title": "Execution",
-        "does": "Run the focused tests first, then the impacted regression checks, using the project's own commands."
+        "does": "With G4 holding, run the focused tests first, then the impacted regression checks, using the project's own commands."
       },
       {
         "id": "debugging",
         "title": "Debugging",
-        "does": "Diagnose each failure from its evidence and fix the root cause, not the symptom."
+        "does": "Diagnose each failure from its evidence and fix the root cause, not the symptom. A fix changes the approved diff, so G4 is approved again before the rerun."
       },
       {
         "id": "evidence",
         "title": "Evidence",
-        "does": "Record the runs as evidence and link every case to its requirement. Without recorded evidence the work is not complete."
+        "does": "Record the runs as evidence and link every case to its requirement. A human approves the evidence; without it the work is not complete.",
+        "approval": "G5",
+        "gatePoint": "ship:pre"
       },
       {
         "id": "validation",
         "title": "Validation",
-        "does": "Reconcile the results against the approved PRD, plan, and cases, and list every gap. An independent reviewer judges this stage, not the author.",
-        "approval": "verification"
+        "does": "Reconcile the results against the approved scope, scenarios, plan, and cases, and list every gap. An independent reviewer judges this stage, not the author."
       },
       {
         "id": "release",
         "title": "Release",
-        "does": "Prepare release material only. A human decides, performs, or authorises the release: an agent never publishes, merges, or deploys."
+        "does": "With G5 holding, prepare release material only. A human decides, performs, or authorises the release: an agent never publishes, merges, or deploys."
+      }
+    ],
+    "devPipeline": [
+      {
+        "id": "prd",
+        "title": "Requirements and scope",
+        "artifact": "PRD.md",
+        "sources": [
+          "tickets",
+          "confluence",
+          "figma",
+          "documentation",
+          "api"
+        ],
+        "does": "Collect the requirements from every declared source into one PRD that fixes the scope and the acceptance criteria. Record conflicts and gaps between sources instead of resolving them silently.",
+        "approval": "G0",
+        "gatePoint": "discuss:post"
+      },
+      {
+        "id": "design",
+        "title": "Design",
+        "artifact": "DESIGN.md",
+        "does": "From the approved scope, decide the approach: components touched, interfaces and contracts, data and migration changes, security and performance impact, rollout and rollback. Reuse what exists before adding anything new.",
+        "approval": "G1",
+        "gatePoint": "plan:pre"
+      },
+      {
+        "id": "plan",
+        "title": "Plan",
+        "artifact": "PLAN.md",
+        "does": "From the approved design, list the tasks and, for each acceptance criterion, the behaviors to prove (B-1, B-2, ...) with the test that proves each one and the regression area it touches.",
+        "approval": "G2",
+        "gatePoint": "plan:post"
+      },
+      {
+        "id": "tests-first",
+        "title": "Tests first",
+        "artifact": "TESTS.md",
+        "does": "Write the failing test for each planned behavior before any implementation and record the red run (commit trailer `Harness-Phase: red B-n`). The human approves the tests and their failure output.",
+        "approval": "G3",
+        "gatePoint": "plan:post"
+      },
+      {
+        "id": "implementation",
+        "title": "Implementation",
+        "standards": [
+          "project lint and type-check clean",
+          "smallest change that turns each test green",
+          "no new suppression, debugger or ticketless TODO",
+          "reusable",
+          "readable"
+        ],
+        "does": "Make each failing test pass (`Harness-Phase: green B-n`), then refactor with the tests green. A human approves the exact diff, every changed file, before verification runs against it.",
+        "approval": "G4",
+        "gatePoint": "execute:wave:post"
+      },
+      {
+        "id": "verification",
+        "title": "Verification",
+        "does": "With G4 holding, run the project's own standard (lint, type-check, unit, integration) and the impacted regression checks, using the project's commands."
+      },
+      {
+        "id": "debugging",
+        "title": "Debugging",
+        "does": "Diagnose each failure from its evidence and fix the root cause, not the symptom. A fix changes the approved diff, so G4 is approved again before the rerun."
+      },
+      {
+        "id": "evidence",
+        "title": "Evidence",
+        "does": "Record the verification runs and link every behavior to its requirement and its test. A human approves the evidence; without it the work is not complete.",
+        "approval": "G5",
+        "gatePoint": "ship:pre"
+      },
+      {
+        "id": "review",
+        "title": "Review",
+        "does": "An independent reviewer reconciles the diff against the approved scope, design, and plan, and lists every gap. The author never reviews their own change."
+      },
+      {
+        "id": "release",
+        "title": "Release",
+        "does": "With G5 holding, prepare release material only. A human decides, performs, or authorises the release: an agent never publishes, merges, or deploys."
       }
     ],
     "taskTypes": {
@@ -386,6 +487,9 @@
     }
   ],
   "hooks": {
+    "sessionStart": [
+      "doctor-notify.mjs"
+    ],
     "prompt": [
       "harness-config-gate.mjs",
       "prompt-duplication-guard.mjs"

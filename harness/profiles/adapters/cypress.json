@@ -204,6 +204,7 @@
     }
   ],
   "hooks": {
+    "sessionStart": ["doctor-notify.mjs"],
     "prompt": ["harness-config-gate.mjs", "prompt-duplication-guard.mjs"],
     "preWrite": ["pre-validate-cypress-rules.mjs"],
     "postWrite": ["validate-cypress-rules.mjs"],

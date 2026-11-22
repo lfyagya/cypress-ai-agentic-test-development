@@ -55,6 +55,16 @@ function manifest(framework) {
     "harness/patterns.mjs",
     "harness/workflow-model.mjs",
     "harness/engine-version.json",
+    // GSD runtime: the G0-G5 ledger GSD calls, the capability it installs, and the git hooks.
+    "scripts/gates.mjs",
+    "harness/capability/",
+    "harness/githooks/",
+    // Guards every surface shares: CI check, gap doctor notification, dev foundations.
+    "harness/ci/",
+    "harness/dev-foundations.md",
+    ".claude/hooks/doctor-notify.mjs",
+    // The engine's own adapter for dev lanes wires its scanner here instead of shared-rules.mjs.
+    ...(framework === "source" ? [".claude/hooks/source-rules.mjs"] : []),
     ".claude/hooks/rule-engine.mjs",
     ".claude/hooks/harness-config-gate.mjs",
     ".claude/hooks/session-end-reminder.mjs",

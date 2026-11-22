@@ -14,7 +14,9 @@ import { parseArgs, readJson } from "../../../scripts/lib/cli.mjs";
 import { CONCERNS, CONCERN_IDS } from "../../concerns.mjs";
 import {
   laneModelIssues,
+  workspaceIssues,
   laneProfile,
+  laneTeam,
   profileBlockIssues,
   selectLane,
 } from "../../lane-model.mjs";
@@ -139,7 +141,7 @@ export function resolveRules(base, profile) {
 }
 
 export function compose(profile, adaptersDir = ADAPTERS, laneId) {
-  const laneIssues = laneModelIssues(profile);
+  const laneIssues = [...laneModelIssues(profile), ...workspaceIssues(profile)];
   if (laneIssues.length) {
     throw new Error(laneIssues.join("\n"));
   }
@@ -184,6 +186,8 @@ export function compose(profile, adaptersDir = ADAPTERS, laneId) {
       laneId: lane.id,
       laneName: lane.name ?? lane.id,
       laneKind: lane.kind ?? "e2e",
+      // Only dev lanes carry it, so every QA config stays exactly as it was; readers default to qa.
+      ...(laneTeam(laneFacts) === "dev" ? { laneTeam: "dev" } : {}),
       repo: lane.repo ?? profile.repo,
       safety: lane.safety,
       ...(profile.sources ? { sources: profile.sources } : {}),
@@ -213,6 +217,11 @@ export function compose(profile, adaptersDir = ADAPTERS, laneId) {
     hooks: base.hooks,
     ...(base.skills ? { skills: base.skills } : {}),
     permissions: over.permissions ?? base.permissions,
+    // Multi-repo layout, git-gate policy and gate markers: profile data read by scripts/engine/git-gate.mjs
+    // and scripts/gates.mjs. Absent blocks stay absent, so single-repo configs do not change.
+    ...(profile.workspace ? { workspace: profile.workspace } : {}),
+    ...(profile.git ? { git: profile.git } : {}),
+    ...(profile.gates ? { gates: profile.gates } : {}),
   };
   return config;
 }

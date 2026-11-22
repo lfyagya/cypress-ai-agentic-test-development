@@ -36,6 +36,15 @@ module.exports = [
       "cypress/videos/**",
       "cypress/downloads/**",
       "dist/**",
+      // GSD Core runtime: installed per person by install-gsd.mjs and gitignored, not project code.
+      ".{claude,cursor,codex,github}/gsd-core/**",
+      ".{claude,cursor,codex,github}/gsd-migration-journal/**",
+      ".{claude,cursor,codex,github}/{agents,commands,hooks}/gsd-*",
+      ".{claude,cursor,codex,github}/hooks/lib/**",
+      ".{claude,cursor,codex,github}/hooks/managed-hooks-registry.cjs",
+      ".{claude,cursor,codex,github}/skills/gsd-*/**",
+      ".{claude,cursor,codex,github}/scripts/**",
+      ".gsd/**",
     ],
   },
 ];

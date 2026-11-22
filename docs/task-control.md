@@ -75,14 +75,17 @@ worktree. Task records live at `evidence/tasks/<id>.json`.
    of the approval, so any later edit blocks verification until it is approved again.
 
    ```text
-   node scripts/task-control.mjs approve --id TASK-001 --artifact plan --file .planning/phases/01-checkout/TASK-001-plan.md --by "Reviewer name"
+   node scripts/task-control.mjs approve --id TASK-001 --artifact G2 --file .planning/phases/01-checkout/TASK-001-plan.md --by "Reviewer name"
    ```
 
-   The delivery pipeline has four human gates, each recorded the same way under its own artifact
-   kind: `prd`, `plan` (the test plan), `test-cases`, and `verification`. `verify` always requires the
-   `plan` approval. For an `automation-evidence` task (Cypress or Playwright work) it also requires
-   the `prd` and `test-cases` approvals, and every proof mode re-checks those two documents when they
-   were approved, so editing either after approval blocks verification until it is approved again.
+   The delivery pipeline has six human gates, G0–G5 (scope, scenarios, test plan, test cases,
+   implementation diff, evidence); task control records each the same way under its gate id. `verify`
+   always requires G2 (the plan). For an `automation-evidence` task (Cypress or Playwright work) it
+   also requires G0 and G3, and every proof mode re-checks those two documents when they were
+   approved, so editing either after approval blocks verification until it is approved again.
+   Records from engines before 1.0.0 keep their `prd`, `plan`, `test-cases` and `verification`
+   approvals; they are read as G0, G2, G3 and G5 and never rewritten, and `--artifact` still accepts
+   those names. GSD's own loop is gated by the phase ledger (`scripts/gates.mjs`), not by this record.
    `task:check` in CI applies the same checks after the approved documents are committed, and allows
    those documents (and the plan) to be committed after the verification commit. `source-tdd` and
    `no-test` tasks are not PRD-driven and do not need the two approvals.

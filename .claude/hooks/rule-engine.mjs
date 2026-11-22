@@ -13,9 +13,11 @@
  * control-flow surgery in two files that must be kept in step by hand.
  */
 
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CONCERNS } from "../../harness/concerns.mjs";
 
 // Every rule matches on extension, so the extension list lives here once. A TypeScript spec that
 // slips past this list silently loses every block-severity rule — identical code, zero violations —
@@ -338,6 +340,7 @@ export function makeScanner({ targetFileRe, rules }) {
       if (rule.appliesTo && !rule.appliesTo(normalized)) continue;
       const message = messages[rule.ruleId] || rule.fallback;
 
+      const before = violations.length;
       if (rule.check) {
         rule.check({
           filePath: normalized,
@@ -352,20 +355,127 @@ export function makeScanner({ targetFileRe, rules }) {
               message: override ?? message,
             }),
         });
-        continue;
+      } else {
+        scanForRegex(
+          violations,
+          normalized,
+          content,
+          rule.pattern,
+          rule.messageBuilder
+            ? (match) => rule.messageBuilder(match, { message, allowlist })
+            : message,
+        );
       }
-
-      scanForRegex(
-        violations,
-        normalized,
-        content,
-        rule.pattern,
-        rule.messageBuilder
-          ? (match) => rule.messageBuilder(match, { message, allowlist })
-          : message,
-      );
+      for (const v of violations.slice(before)) v.ruleId = rule.ruleId;
     }
 
-    return violations;
+    return applyRatchet(violations, content, repoRoot);
   };
+}
+
+// ---- Ratchet, waivers and the fix message ---------------------------------------------------------
+//
+// Every adapter hook, the rules CLI, the git gate and CI reach violations through makeScanner, so this
+// is the one place that decides what blocks. New and changed code blocks. Legacy code that existed when
+// the project adopted the harness is fingerprinted in a baseline and passes until someone touches the
+// line. A genuine exception is a human-recorded waiver with an owner and an expiry. Tier 0 (trust
+// boundaries) can be neither baselined nor waived. Every block says what to do instead and how to
+// unblock correctly, so the fastest route past a block is the right one.
+
+export const BASELINE_FILE = "evidence/rule-baseline.json";
+export const WAIVER_FILE = "evidence/rule-waivers.json";
+export const MAX_WAIVER_DAYS = 90;
+
+/** One violation as every engine surface prints it: location, message, then fix / why / unblock. */
+export function formatViolation(v) {
+  return [
+    `- ${toPosix(v.filePath)}:${v.lineNumber} [${v.ruleId ?? "rule"}] ${v.message}`,
+    ...(v.guidance ?? []).map((line) => `    ${line}`),
+  ].join("\n");
+}
+
+/** Line identity that survives unrelated edits above it: rule, file and the trimmed line text. */
+export function fingerprint(ruleId, filePath, lineText) {
+  return crypto
+    .createHash("sha256")
+    .update(`${ruleId}\0${toPosix(filePath)}\0${String(lineText).trim()}`)
+    .digest("hex")
+    .slice(0, 16);
+}
+
+const readJsonOr = (file, fallback) => {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+};
+
+/** id -> { concern, tier, instead, why } for the rules the composed config declares. */
+export function loadRuleMeta(repoRoot) {
+  const rules =
+    readJsonOr(path.join(repoRoot, "harness.config.json"), {}).rules ?? [];
+  return Object.fromEntries(
+    rules.map((rule) => [
+      rule.id,
+      {
+        concern: rule.concern,
+        tier: CONCERNS[rule.concern]?.tier ?? 1,
+        instead: rule.instead,
+        why: rule.why,
+      },
+    ]),
+  );
+}
+
+// A malformed baseline or waiver file counts as empty: it can only make the checker stricter.
+// HARNESS_IGNORE_BASELINE=1 (used when re-recording it) also only makes it stricter.
+export function loadRatchet(repoRoot) {
+  const baseline =
+    process.env.HARNESS_IGNORE_BASELINE === "1"
+      ? {}
+      : readJsonOr(path.join(repoRoot, BASELINE_FILE), {});
+  const waivers = readJsonOr(path.join(repoRoot, WAIVER_FILE), {});
+  return {
+    baseline: new Set(
+      (Array.isArray(baseline.entries) ? baseline.entries : []).map(
+        (e) => e.fingerprint,
+      ),
+    ),
+    waivers: Array.isArray(waivers.waivers) ? waivers.waivers : [],
+  };
+}
+
+export function applyRatchet(violations, content, repoRoot, now = Date.now()) {
+  if (!violations.length) return violations;
+  const lines = String(content).split(/\r?\n/);
+  const meta = loadRuleMeta(repoRoot);
+  const { baseline, waivers } = loadRatchet(repoRoot);
+  const blocking = [];
+  for (const v of violations) {
+    const rule = meta[v.ruleId] ?? { tier: 1 };
+    const fp = fingerprint(v.ruleId, v.filePath, lines[v.lineNumber - 1] ?? "");
+    v.fingerprint = fp;
+    const tier0 = rule.tier === 0;
+    if (!tier0 && baseline.has(fp)) continue; // legacy, recorded at adoption
+    const waiver = waivers.find((w) => w.fingerprint === fp);
+    const live = waiver && Date.parse(waiver.expires) > now;
+    if (!tier0 && live) continue;
+    const notes = [];
+    if (rule.instead) notes.push(`fix: ${rule.instead}`);
+    if (rule.why) notes.push(`why: ${rule.why}`);
+    if (waiver && !live)
+      notes.push(
+        `the waiver for this line expired on ${waiver.expires}; fix it, or a human renews it`,
+      );
+    notes.push(
+      tier0
+        ? "unblock: fix it. This is a trust boundary (Tier 0): it cannot be waived or baselined."
+        : `unblock: fix it, or if it is a genuine exception a human records a waiver: node scripts/engine/waive.mjs --rule ${v.ruleId} --file ${v.filePath} --line ${v.lineNumber} --reason "<why>" --owner "<name>" (max ${MAX_WAIVER_DAYS} days)`,
+    );
+    // Kept apart from `message`, which adapters pin in their own tests and print as-is.
+    v.guidance = notes;
+    blocking.push(v);
+  }
+  return blocking;
 }

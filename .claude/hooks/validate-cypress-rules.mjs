@@ -18,6 +18,7 @@ import {
   scanContent,
   toPosix,
 } from "./shared-rules.mjs";
+import { formatViolation } from "./rule-engine.mjs";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(directory, "..", "..");
@@ -50,9 +51,7 @@ function report(violations, label, failCode) {
   console.error("");
   console.error(`❌ [${label}] Cypress rule violations detected:`);
   for (const violation of violations) {
-    console.error(
-      `  ${toPosix(violation.filePath)}:${violation.lineNumber} -> ${violation.message}`,
-    );
+    console.error(formatViolation(violation));
   }
   console.error("");
   process.exit(failCode);
@@ -124,9 +123,7 @@ if (process.argv.includes("--all")) {
     "❌ [POST-CHECK] Cypress rule violations detected in written file.",
   );
   for (const violation of violations) {
-    console.error(
-      `  ${toPosix(violation.filePath)}:${violation.lineNumber} -> ${violation.message}`,
-    );
+    console.error(formatViolation(violation));
   }
   console.error("");
   console.error("Correct these violations before committing.");

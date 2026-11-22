@@ -1,0 +1,140 @@
+{
+  "$comment": "Engine-owned L2 adapter for product code (dev lanes). Language-neutral: the project's own lint, type-check and test commands (wiring.verifyScript) are the standard and run at pre-push and in CI; these rules add what those tools cannot be trusted to enforce. Shipped by lf-qa-harness-os, so it is identical in every consumer.",
+  "version": 1,
+  "framework": "source",
+  "architecture": "Source → Tests (tests first)",
+  "pattern": "source",
+  "paths": {
+    "sourceRoot": "src",
+    "testRoot": "test",
+    "specGlob": "test/**/*"
+  },
+  "defaults": {
+    "adapters": {
+      "claude": { "enabled": true },
+      "copilot": { "enabled": true },
+      "cursor": { "enabled": true },
+      "codex": { "enabled": true }
+    },
+    "context": {
+      "effortLevel": "high",
+      "alwaysThinkingEnabled": true,
+      "autoMemoryEnabled": true
+    },
+    "loops": { "gateRepairLimit": 2 }
+  },
+  "qaFoundations": "harness/dev-foundations.md",
+  "rules": [
+    {
+      "id": "no-hardcoded-secret",
+      "concern": "CRED",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "a password, token, key or private key literal in source or tests",
+      "instead": "read it from the environment or the secret store; tests use generated or fixture credentials",
+      "why": "A committed credential is a breach, not a style issue.",
+      "message": "Hardcoded secret. Read it from the environment or the secret store."
+    },
+    {
+      "id": "no-focused-test",
+      "concern": "FOCUSED-QUARANTINED",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": ".only, fit, fdescribe or @pytest.mark.only",
+      "instead": "run one test from the command line (the runner's grep/-k/--filter) and commit the whole suite",
+      "why": "A focused test silently skips every other test in CI.",
+      "message": "Focused test. Remove .only / fit / fdescribe so the whole suite runs."
+    },
+    {
+      "id": "no-unrecorded-skip",
+      "concern": "FOCUSED-QUARANTINED",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "a skipped or disabled test with no ticket or reason",
+      "instead": "fix the test, or quarantine it with the ticket on the same line (it.skip('... ABC-123', ...), @pytest.mark.skip(reason=\"ABC-123: ...\"), @Disabled(\"ABC-123: ...\"))",
+      "why": "An unrecorded skip hides risk with no owner and no end date.",
+      "message": "Skipped test with no recorded quarantine. Name the ticket on the same line, or give the reason the framework records."
+    },
+    {
+      "id": "no-silent-suppression",
+      "concern": "LINT-SUPPRESS",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "eslint-disable without `-- reason`, @ts-ignore, @ts-nocheck, bare # noqa, bare # type: ignore, bare //nolint",
+      "instead": "fix the finding; if it is a false positive, suppress the one rule with its reason (eslint-disable-next-line rule -- reason, @ts-expect-error -- reason, # noqa: E501, # type: ignore[attr-defined])",
+      "why": "A suppression without a reason hides a real defect from every later reader and reviewer.",
+      "message": "Suppression without a reason. Fix the finding, or state why on the same line."
+    },
+    {
+      "id": "no-debugger",
+      "concern": "DEBUG-LEFTOVER",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "debugger;, pdb.set_trace(), breakpoint(), binding.pry",
+      "instead": "remove it; use the IDE's breakpoints or a test that reproduces the case",
+      "why": "A leftover breakpoint hangs CI or a production process and was never meant to ship.",
+      "message": "Leftover breakpoint. Remove it before committing."
+    },
+    {
+      "id": "todo-needs-ticket",
+      "concern": "TODO-TICKET",
+      "severity": "block",
+      "enforcement": "Hook + CI",
+      "never": "TODO, FIXME, XXX or HACK with no ticket key",
+      "instead": "name the ticket on the line (TODO(ABC-123): ...), or do the work now",
+      "why": "A TODO with no ticket has no owner, so it is never done and never removed.",
+      "message": "TODO/FIXME without a ticket. Name the ticket or do it now."
+    }
+  ],
+  "agents": [
+    {
+      "name": "dev-builder",
+      "role": "BUILD",
+      "description": "Turns an approved plan into a change: failing tests first, then the smallest implementation that turns them green, then refactor with the tests green.",
+      "model": "sonnet",
+      "tools": ["Read", "Write", "Edit", "Grep", "Glob", "Bash"],
+      "when": "Implement an approved plan behavior by behavior (red → green → refactor)"
+    },
+    {
+      "name": "dev-debugger",
+      "role": "DIAGNOSE",
+      "description": "Reproduce a failure, trace it to its root cause from evidence, and propose the exact fix with the test that proves it.",
+      "model": "opus",
+      "tools": ["Read", "Grep", "Glob", "Bash", "Edit"],
+      "when": "A reproducible failure in source or its tests"
+    },
+    {
+      "name": "pre-merge-dev-gate",
+      "role": "EVALUATE",
+      "description": "Review the supplied diff and command evidence against the approved scope, design and plan, and return PASS, PASS_WITH_ACTIONS, or BLOCK.",
+      "model": "opus",
+      "permissionMode": "plan",
+      "tools": ["Read", "Grep", "Glob"],
+      "when": "Review a change before merge — PASS / PASS_WITH_ACTIONS / BLOCK",
+      "readOnlyRationale": "Read/search only by design: the reviewer cannot edit or run anything, so the author never grades their own change."
+    }
+  ],
+  "hooks": {
+    "sessionStart": ["doctor-notify.mjs"],
+    "prompt": ["harness-config-gate.mjs"],
+    "preWrite": ["pre-validate-source-rules.mjs"],
+    "postWrite": [],
+    "stop": ["session-end-reminder.mjs"]
+  },
+  "permissions": {
+    "defaultMode": "plan",
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(node scripts/*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git commit --no-verify*)",
+      "Bash(git push --no-verify*)"
+    ]
+  }
+}

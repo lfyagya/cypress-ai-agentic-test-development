@@ -70,16 +70,16 @@ existing suite never touches one.**
 These are what make a project's setup _the harness_. None names a framework, a design pattern, a
 folder, or a package manager. **None of Laudio's five objections touches any of them.**
 
-| #      | Invariant                                                                                                                                               | Why                                                                                                                                          | Verified by                                                      |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| **I1** | **One generated source of policy.** Composed from L2+L3+L4, carries a `GENERATED` marker, never hand-edited, drift-checked in CI.                       | Two owners of the same policy means the policy has no owner.                                                                                 | `harness:compose --verify` + drift check                         |
-| **I2** | **Rules reach the writer and the pipeline.** The same rule set is enforced at write-time and in CI.                                                     | A rule that only exists in a document is advice, and advice does not survive a deadline.                                                     | write-time hook + CI step, both present                          |
-| **I3** | **Declared equals enforced.** A rule declared `block` has a pattern behind it. A declared path is the path actually scanned.                            | A rule declared blocking with no pattern is worse than an absent rule — the generated instructions advertise protection that does not exist. | `test-block-rules-enforced` · `test-config-paths-honest`         |
-| **I4** | **An independent read-only evaluator.** The gate that grades output cannot write files or run commands.                                                 | The builder must never grade its own work.                                                                                                   | `pre-merge-qa-gate`: `permissionMode: plan`, Read/Grep/Glob only |
-| **I5** | **Trust boundaries are never relaxed.** No credential literals. Smoke suites read-only. No production data.                                             | These are breaches, not style.                                                                                                               | Tier 0 rules, non-disableable                                    |
-| **I6** | **Traceability.** Every test carries exactly one known requirement id, so coverage is computable.                                                       | Three of 22 projects can measure coverage today. Without this the rollout has no evidence.                                                   | `one-requirement-tag`, enforcement ramped (§6.4)                 |
-| **I7** | **Evidence ledger.** Every gate verdict is backed by recorded command output.                                                                           | A verdict nobody can reproduce is an opinion.                                                                                                | `evidence:record` / `evidence:build`                             |
-| **I8** | **GSD delivery pipeline and task routing.** One canonical pipeline, its human gates, and task-specific completion contract reach every enabled AI tool. | A plan that skips verification, or a task type with no proof obligation, is not a reliable workflow.                                         | `workflow-model.mjs` + projection and `.planning/` check         |
+| #      | Invariant                                                                                                                                                                                                                  | Why                                                                                                                                          | Verified by                                                                           |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **I1** | **One generated source of policy.** Composed from L2+L3+L4, carries a `GENERATED` marker, never hand-edited, drift-checked in CI.                                                                                          | Two owners of the same policy means the policy has no owner.                                                                                 | `harness:compose --verify` + drift check                                              |
+| **I2** | **Rules reach the writer and the pipeline.** The same rule set is enforced at write-time and in CI.                                                                                                                        | A rule that only exists in a document is advice, and advice does not survive a deadline.                                                     | write-time hook + CI step, both present                                               |
+| **I3** | **Declared equals enforced.** A rule declared `block` has a pattern behind it. A declared path is the path actually scanned.                                                                                               | A rule declared blocking with no pattern is worse than an absent rule — the generated instructions advertise protection that does not exist. | `test-block-rules-enforced` · `test-config-paths-honest`                              |
+| **I4** | **An independent read-only evaluator.** The gate that grades output cannot write files or run commands.                                                                                                                    | The builder must never grade its own work.                                                                                                   | `pre-merge-qa-gate`: `permissionMode: plan`, Read/Grep/Glob only                      |
+| **I5** | **Trust boundaries are never relaxed.** No credential literals. Smoke suites read-only. No production data.                                                                                                                | These are breaches, not style.                                                                                                               | Tier 0 rules, non-disableable                                                         |
+| **I6** | **Traceability.** Every test carries exactly one known requirement id, so coverage is computable.                                                                                                                          | Three of 22 projects can measure coverage today. Without this the rollout has no evidence.                                                   | `one-requirement-tag`, enforcement ramped (§6.4)                                      |
+| **I7** | **Evidence ledger.** Every gate verdict is backed by recorded command output.                                                                                                                                              | A verdict nobody can reproduce is an opinion.                                                                                                | `evidence:record` / `evidence:build`                                                  |
+| **I8** | **GSD delivery pipeline and task routing.** One canonical pipeline, run by GSD Core at the pinned release with G0–G5 enforced at their loop points, and its task-specific completion contract reach every enabled AI tool. | A plan that skips verification, or a task type with no proof obligation, is not a reliable workflow. A gate described but not run is advice. | `workflow-model.mjs` + projection, `.planning/`, capability and `install-gsd --check` |
 
 ### 3.1 I2 and advisory-only tools
 
@@ -123,33 +123,44 @@ all enabled AI tools; task control, the instructions, and conformance all read i
 (`harness/workflow-model.mjs`), so they cannot describe different workflows. Projects do not override
 it by editing their profile.
 
-It is a delivery pipeline with four human gates. A stage with a gate stops until a human approves its
-document; the approval is recorded as a content hash under the artifact kind shown, so editing an
-approved document invalidates the work built on it.
+It is a delivery pipeline with six human gates, G0–G5, run by **GSD Core** at a pinned release
+(`GSD_WORKFLOW.gsd`, 1.14.0 at engine 1.0.0). A stage with a gate stops until a human approves its
+artifacts in an interactive terminal (`node scripts/gates.mjs approve --phase-dir <phase> <G> <file>...`).
+The approval is a content-hash ledger, `<phase>/APPROVALS.json`, so editing an approved artifact
+reopens its gate and every gate after it. The `qa-harness` GSD capability, generated from the same
+model into `harness/capability/`, makes GSD check each gate at the loop point shown and halt there.
 
-| Stage                 | Document        | Inputs and standards                                                              | Gate (`approve --artifact`) |
-| --------------------- | --------------- | --------------------------------------------------------------------------------- | --------------------------- |
-| 1. **PRD**            | `PRD.md`        | Sources: tickets, Confluence, Figma, documentation, API                           | `prd`                       |
-| 2. **Test plan**      | `TEST-PLAN.md`  | Sections by format: backend, frontend, functional, integration, regression, smoke | `plan`                      |
-| 3. **Test cases**     | `TEST-CASES.md` | Specs, codebase, existing automation coverage; detailed, end to end               | `test-cases`                |
-| 4. **Implementation** | —               | Framework standard; well structured, reusable, maintainable, readable             | —                           |
-| 5. **Execution**      | —               | Focused tests, then impacted regression                                           | —                           |
-| 6. **Debugging**      | —               | Root cause from evidence; repair bounded                                          | —                           |
-| 7. **Evidence**       | —               | Runs recorded, every case linked to its requirement                               | —                           |
-| 8. **Validation**     | —               | Results reconciled against the approved documents by an independent reviewer      | `verification`              |
-| 9. **Release**        | —               | Release material prepared; a human decides and performs the release               | —                           |
+| Stage                         | Document        | Inputs and standards                                                              | Gate | GSD checks at       |
+| ----------------------------- | --------------- | --------------------------------------------------------------------------------- | ---- | ------------------- |
+| 1. **Requirements and scope** | `PRD.md`        | Sources: tickets, Confluence, Figma, documentation, API                           | G0   | `discuss:post`      |
+| 2. **Scenarios**              | `SCENARIOS.md`  | Happy, negative, edge; each cites its criterion and source                        | G1   | `plan:pre`          |
+| 3. **Test plan**              | `TEST-PLAN.md`  | Sections by format: backend, frontend, functional, integration, regression, smoke | G2   | `plan:post`         |
+| 4. **Test cases**             | `TEST-CASES.md` | Specs, codebase, existing automation coverage; detailed, end to end               | G3   | `plan:post`         |
+| 5. **Implementation**         | —               | Framework standard; the exact diff is approved before any test runs against it    | G4   | `execute:wave:post` |
+| 6. **Execution**              | —               | Focused tests, then impacted regression; needs G4                                 | —    | —                   |
+| 7. **Debugging**              | —               | Root cause from evidence; repair bounded; a fix re-approves G4                    | —    | —                   |
+| 8. **Evidence**               | —               | Runs recorded, every case linked to its requirement                               | G5   | `ship:pre`          |
+| 9. **Validation**             | —               | Results reconciled against the approved artifacts by an independent reviewer      | —    | —                   |
+| 10. **Release**               | —               | Needs G5; a human decides and performs the release                                | —    | —                   |
+
+A phase's CONTEXT can carry marker lines with the profile's prefix (`gates.markerPrefix`, default
+`Harness`): `<P> tier: S` lets one G0 approval record G0–G2, `<P> spec change: none` with tier S drops
+G3, and `<P> gates: exempt - <reason>` exempts the phase once a human records its hash. They count only
+inside a G0-approved CONTEXT. Engines before 1.0.0 recorded four named kinds; task records keep them
+and are read through a fixed alias (`prd`→G0, `plan`→G2, `test-cases`→G3, `verification`→G5).
 
 Documents live under `.planning/phases/<phase>/`. Every stage applies to every task and is scaled to
 its size, never skipped. Task types (feature, defect, refactor, test, docs/config, research) add their
 own proof obligations on top. Upstream changes invalidate downstream work, repeated repair is
 bounded, and automatic shipping is disabled.
 
-**Mechanical versus guidance.** Task control records all four approvals as hashes. `verify` requires
-the `plan` approval for every task and, for `automation-evidence` tasks (Cypress or Playwright
-work), the `prd` and `test-cases` approvals as well; an approved document that was edited afterwards
-blocks verification, and `task:check` in CI repeats the same checks. The implementation, execution,
-debugging, and validation ordering beyond those approvals is instruction-level and is checked by the
-independent evaluator.
+**Mechanical versus guidance.** GSD Core halts its own loop at each gate point until the ledger holds.
+Task control records the same gate ids as hashes: `verify` requires G2 (the plan) for every task and,
+for `automation-evidence` tasks (Cypress or Playwright work), G0 and G3 as well; an approved document
+that was edited afterwards blocks verification, and `task:check` in CI repeats the same checks. The
+git gate (`harness/githooks/` → `scripts/engine/git-gate.mjs`) blocks protected-branch commits and
+pushes, read-only repos, secrets and the profile's blocked paths for every tool and every human.
+Validation ordering beyond that is checked by the independent evaluator.
 
 A profile may declare where its PRD material lives in an optional `sources` block (`tickets`,
 `confluence`, `figma`, `documentation`, `api`; each a string or list of strings naming a board, space,
@@ -159,7 +170,17 @@ by readiness, and restated to agents so they collect from real places and ask ab
 The workflow points agents at `.planning/`, so `harness:sync` scaffolds it when absent —
 `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, and `phases/` — and never rewrites an
 existing file: it is team-owned work state, not a projection, and drift checks ignore it. I8 reports a
-gap while any of it is missing. Plain markdown is enough; no external GSD install is required.
+gap while any of it is missing, while `harness/capability/` differs from the pipeline, and while GSD
+Core is not installed at the pin with the `qa-harness` capability active and every gate rendered at its
+point. `node scripts/engine/install-gsd.mjs` installs what is missing (GSD Core `--local`, one flag per
+enabled adapter, then the capability for the current user); `--check` only reports.
+
+A multi-repo workspace (one planning root, several clones) declares them in an optional
+`workspace.repos` block (`<folder>: { branch, access: write | read, url? }`); every lane's `repo` must
+be a `write` entry. `git` (`protectedBranches`, `secretFiles`, `blockedPaths`) and `gates`
+(`markerPrefix`, `ticketPattern`) are optional too. All three are project data carried verbatim into
+`harness.config.json`. Lanes may declare `adapter: pytest` (`test_` spec files, `pip` wiring) so a
+profile can state every lane it has; composing one needs an L2 pytest adapter, which does not exist yet.
 
 Guidance is scoped by role. Agents that can write receive the full pipeline after their own role
 statement. The read-only evaluator receives an evidence-review and validation stanza listing the
@@ -264,6 +285,55 @@ The ramp:
 
 The invariant survives; only the friction is staged. A project may not stay at `review`
 indefinitely — the ratchet date is recorded in the profile.
+
+### 6.5 New code blocks; legacy code ratchets; exceptions are recorded
+
+Every surface reaches violations through the engine's `makeScanner`: the adapter write hooks, the git
+gate (pre-commit on the index, pre-push on the outgoing commits), CI and a person at a terminal
+(`node scripts/engine/check-rules.mjs`). So one decision applies everywhere:
+
+- **New and changed code blocks**, for every tool and every human. CI runs the same check, so a local
+  `--no-verify` gains nothing. Before every push the git gate also runs the project's own standard,
+  `wiring.verifyScript` (lint, type-check, tests).
+- **Legacy code ratchets.** At adoption a human records today's findings once
+  (`check-rules --write-baseline`, interactive only) in `evidence/rule-baseline.json`. A baselined line
+  passes until it is touched. The baseline may only shrink, CI fails if it grows, and `doctor --heal`
+  drops entries whose finding is gone. Tier 0 findings are never baselined.
+- **Unblocking is correct by construction.** Every violation names its fix, its reason and its unblock
+  path. A genuine exception is a human-recorded waiver (`scripts/engine/waive.mjs`, interactive only)
+  bound to the line's text, with a reason, an owner and an expiry of at most 90 days. Editing the line
+  or reaching the expiry ends it. Tier 0 is never waived.
+
+### 6.6 Dev and QA teams
+
+A lane on the engine's own `source` adapter is a **dev** lane, and every other adapter is **QA**. Both
+run under the same G0–G5 gates at the same GSD points, the same git gate and the same rules checker.
+They differ in what the stages produce:
+
+| Gate | QA lane                | Dev lane                                   |
+| ---- | ---------------------- | ------------------------------------------ |
+| G0   | Requirements and scope | Requirements and scope                     |
+| G1   | Scenarios              | Design                                     |
+| G2   | Test plan              | Plan (behaviors B-n per criterion)         |
+| G3   | Test cases             | Tests first (red runs recorded)            |
+| G4   | Implementation diff    | Implementation diff (green, then refactor) |
+| G5   | Execution evidence     | Verification evidence                      |
+
+Dev lanes declare `sourceRoot`, `testRoot` and `specGlob`, and carry the language-neutral product-code
+concerns (CRED, FOCUSED-QUARANTINED, LINT-SUPPRESS, DEBUG-LEFTOVER, TODO-TICKET). SMOKE-RO and per-test
+TRACE are QA concerns. Dev traceability runs requirement → planned behavior → red/green commits
+through task records.
+
+### 6.7 The doctor — explore, connect, heal, notify
+
+`node scripts/engine/doctor.mjs` checks the project against everything above and writes
+`evidence/gaps.json`. Each gap links to what it belongs to (requirement, task, phase and gate, test,
+file and rule, owner) and names the exact fix. `--heal` applies only repairs that cannot change policy
+or a human decision: re-syncing projections, pointing git at the harness hooks, installing the pinned
+GSD and its capability, installing the CI check, and dropping stale baseline entries. A violation, an
+open gate, an expiring waiver and an untested requirement are reported to their owner, never "healed".
+A check that cannot run is itself a blocking gap. The report reaches people at session start (the
+`doctor-notify.mjs` hook) and in every CI run (the job summary).
 
 ---
 

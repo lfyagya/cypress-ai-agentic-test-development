@@ -1,6 +1,17 @@
-import { PATTERNS } from "./patterns.mjs";
+import { PATTERNS, patternsForTeam } from "./patterns.mjs";
 
-export const LANE_ADAPTERS = new Set(["cypress", "playwright"]);
+// pytest is declarable so a profile can state every lane it has; composing a pytest lane needs an
+// adapters/pytest.json (L2) that does not exist yet, and compose says so instead of guessing.
+// `source` is the engine's own language-neutral adapter for product code: a lane on it belongs to the
+// dev team, every other adapter to QA. Both teams share the gates, the git gate and the rule checker.
+export const LANE_ADAPTERS = new Set([
+  "cypress",
+  "playwright",
+  "pytest",
+  "source",
+]);
+export const laneTeam = (lane) => (lane?.adapter === "source" ? "dev" : "qa");
+const SPEC_MARKER = { cypress: ".cy.", playwright: ".spec.", pytest: "test_" };
 // What a lane tests. Layer (frontend, backend, e2e), type (functional, integration, regression,
 // smoke), or anything else a team needs: `other` is the escape hatch, so no kind of test is
 // unrepresentable. A project declares as many lanes as it has kinds of tests.
@@ -32,7 +43,11 @@ export const LANE_MUTATION_MODES = new Set([
   "approved",
 ]);
 
-const REQUIRED_PATHS = ["testRoot", "configRoot", "commandRoot", "specGlob"];
+const REQUIRED_PATHS = {
+  qa: ["testRoot", "configRoot", "commandRoot", "specGlob"],
+  // Product code and its tests; specGlob names the test files.
+  dev: ["sourceRoot", "testRoot", "specGlob"],
+};
 const REQUIRED_WIRING = ["packageManager", "workspacePackage", "verifyScript"];
 const REQUIRED_STRATEGY = ["auth", "testData", "credentialSource"];
 const SAFETY_KEYS = new Set([
@@ -44,7 +59,7 @@ const SAFETY_KEYS = new Set([
 ]);
 export const PROFILE_BLOCK_SCHEMAS = {
   wiring: {
-    packageManager: ["npm", "yarn", "pnpm"],
+    packageManager: ["npm", "yarn", "pnpm", "pip", "maven", "gradle"],
     workspacePackage: "boolean",
     verifyScript: "string",
   },
@@ -155,10 +170,12 @@ export function laneModelIssues(profile) {
     if (!LANE_KINDS.has(lane.kind)) {
       issues.push(`${at}.kind must be one of ${[...LANE_KINDS].join(", ")}`);
     }
-    const pattern = lane.pattern ?? profile.pattern;
-    if (pattern !== undefined && !Object.hasOwn(PATTERNS, pattern)) {
+    const team = laneTeam(lane);
+    const pattern =
+      lane.pattern ?? (team === "dev" ? undefined : profile.pattern);
+    if (pattern !== undefined && !patternsForTeam(team).includes(pattern)) {
       issues.push(
-        `${at}.pattern must be one of ${Object.keys(PATTERNS).join(", ")}`,
+        `${at}.pattern must be one of ${patternsForTeam(team).join(", ")} for a ${team} lane`,
       );
     }
     if (!present(lane.repo ?? profile.repo)) {
@@ -166,7 +183,7 @@ export function laneModelIssues(profile) {
     }
 
     for (const [block, fields] of [
-      ["paths", REQUIRED_PATHS],
+      ["paths", REQUIRED_PATHS[team]],
       ["wiring", REQUIRED_WIRING],
       ["strategy", REQUIRED_STRATEGY],
     ]) {
@@ -189,8 +206,8 @@ export function laneModelIssues(profile) {
         }
       }
       if (block === "paths" && typeof value.specGlob === "string") {
-        const marker = lane.adapter === "cypress" ? ".cy." : ".spec.";
-        if (!value.specGlob.includes(marker)) {
+        const marker = SPEC_MARKER[lane.adapter];
+        if (marker && !value.specGlob.includes(marker)) {
           issues.push(
             `${at}.paths.specGlob must use "${marker}" for the ${lane.adapter} adapter`,
           );
@@ -291,7 +308,9 @@ export function laneProfile(profile, lane) {
     ...profile,
     ...lane,
     adapter: lane.adapter ?? profile.adapter,
-    pattern: lane.pattern ?? profile.pattern,
+    // A dev lane never inherits the profile's test architecture; it falls back to its adapter's own.
+    pattern:
+      lane.pattern ?? (laneTeam(lane) === "dev" ? undefined : profile.pattern),
     paths: mergeProfileBlock(lane, profile, "paths"),
     wiring: mergeProfileBlock(lane, profile, "wiring"),
     strategy: mergeProfileBlock(lane, profile, "strategy"),
@@ -317,4 +336,99 @@ export function laneSafetyGuidance(project) {
 This repository serves lane \`${project.laneId}\` (${project.laneName}, ${project.laneKind}) and may only target: ${(safety.targets ?? []).join(", ")}. Mutation policy: ${policy}
 
 Plan sections whose format belongs to another lane are recorded in the test plan for that lane, not implemented here. Stop and ask rather than touch a target or perform a write outside this declaration. It changes only through the project profile, never inside a task.`;
+}
+
+const REPO_ACCESS = new Set(["write", "read"]);
+const isRegex = (source) => {
+  try {
+    new RegExp(source);
+    return typeof source === "string" && source !== "";
+  } catch {
+    return false;
+  }
+};
+const stringList = (value) =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((item) => typeof item === "string" && item.trim() !== "");
+
+// The optional multi-repo and git-gate blocks. `workspace.repos` lists every clone a workspace holds
+// (lanes write, product source reads); `git` feeds scripts/engine/git-gate.mjs; `gates` the phase
+// ledger's marker prefix and ticket key. All three are project data, so none of them is an engine change.
+export function workspaceIssues(profile) {
+  const issues = [];
+  const { workspace, git, gates } = profile;
+  let repos;
+  if (workspace !== undefined) {
+    if (
+      !isPlainObject(workspace) ||
+      !isPlainObject(workspace.repos) ||
+      !Object.keys(workspace.repos).length
+    ) {
+      issues.push(
+        "profile.workspace.repos must be a non-empty object of <folder>: { branch, access }",
+      );
+    } else {
+      repos = workspace.repos;
+      for (const [name, repo] of Object.entries(repos)) {
+        const at = `profile.workspace.repos.${name}`;
+        if (!/^[A-Za-z0-9._-]+$/.test(name))
+          issues.push(`${at}: the key must be a folder name`);
+        if (!isPlainObject(repo)) {
+          issues.push(`${at} must be an object`);
+          continue;
+        }
+        if (!present(repo.branch)) issues.push(`${at}.branch is required`);
+        if (!REPO_ACCESS.has(repo.access))
+          issues.push(`${at}.access must be write or read`);
+        if (repo.url !== undefined && !present(repo.url))
+          issues.push(`${at}.url must name the remote`);
+      }
+      for (const [index, lane] of profileLanes(profile).entries()) {
+        const repo = lane.repo ?? profile.repo;
+        if (!repos[repo])
+          issues.push(
+            `profile.lanes[${index}].repo "${repo}" is not in profile.workspace.repos`,
+          );
+        else if (repos[repo].access !== "write")
+          issues.push(
+            `profile.lanes[${index}].repo "${repo}" is read-only in profile.workspace.repos; a lane writes tests`,
+          );
+      }
+    }
+  }
+  if (git !== undefined) {
+    if (!isPlainObject(git)) issues.push("profile.git must be an object");
+    else {
+      for (const key of Object.keys(git).filter((k) => !k.startsWith("$"))) {
+        if (!["protectedBranches", "secretFiles", "blockedPaths"].includes(key))
+          issues.push(
+            `profile.git.${key} is not a known key. Known: protectedBranches, secretFiles, blockedPaths`,
+          );
+        else if (!stringList(git[key]))
+          issues.push(`profile.git.${key} must be a non-empty list of strings`);
+        else if (key !== "secretFiles" && !git[key].every(isRegex))
+          issues.push(
+            `profile.git.${key} entries must be valid regular expressions`,
+          );
+      }
+    }
+  }
+  if (gates !== undefined) {
+    if (!isPlainObject(gates)) issues.push("profile.gates must be an object");
+    else {
+      if (
+        gates.markerPrefix !== undefined &&
+        !/^[A-Za-z][A-Za-z0-9 _-]*$/.test(gates.markerPrefix)
+      )
+        issues.push(
+          "profile.gates.markerPrefix must be a plain word, e.g. ACME",
+        );
+      if (gates.ticketPattern !== undefined && !isRegex(gates.ticketPattern))
+        issues.push(
+          "profile.gates.ticketPattern must be a valid regular expression",
+        );
+    }
+  }
+  return issues;
 }

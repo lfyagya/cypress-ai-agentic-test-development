@@ -1,17 +1,23 @@
 #!/usr/bin/env node
+// Write-time gate (PreToolUse on Edit|Write). Blocks a proposed change that adds a Cypress rule
+// violation; legacy lines in the baseline and human-recorded waivers pass. Exit 2 blocks the write.
+// Fail closed: input this hook cannot read is a block, never a silent allow.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { formatViolation } from "./rule-engine.mjs";
 import {
   extractToolChange,
-  toPosix,
   loadAllowlist,
   scanContent,
 } from "./shared-rules.mjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..", "..");
 const allowlistPath = path.resolve(__dirname, "cypress-hook-allowlist.json");
+const block = (lines) => {
+  console.error(["", ...lines, ""].join("\n"));
+  process.exit(2);
+};
 
 let raw = "";
 for await (const chunk of process.stdin) raw += chunk;
@@ -20,25 +26,28 @@ let toolData;
 try {
   toolData = JSON.parse(raw);
 } catch {
-  process.exit(0);
+  block([
+    "❌ [PRE-CHECK] the hook could not read the tool input, so the write is blocked rather than unchecked.",
+  ]);
 }
 
-const { filePath, content } = extractToolChange(toolData, repoRoot);
-if (!filePath || !content) process.exit(0);
+let change;
+try {
+  change = extractToolChange(toolData, repoRoot);
+} catch (error) {
+  block([`❌ [PRE-CHECK] ${error.message}; write blocked.`]);
+}
+if (!change.filePath || !change.content) process.exit(0); // not a file write
 
 const allowlist = loadAllowlist(allowlistPath);
-const violations = scanContent(filePath, content, allowlist, repoRoot);
-
-if (violations.length === 0) process.exit(0);
-
-console.error("");
-console.error(
-  "❌ [PRE-CHECK] Cypress rule violations in proposed change — edit BLOCKED.",
+const violations = scanContent(
+  change.filePath,
+  change.content,
+  allowlist,
+  repoRoot,
 );
-for (const v of violations) {
-  console.error(`- ${toPosix(v.filePath)}:${v.lineNumber} -> ${v.message}`);
-}
-console.error("");
-console.error("Fix violations before the write proceeds.");
-
-process.exit(2);
+if (violations.length === 0) process.exit(0);
+block([
+  "❌ [PRE-CHECK] Cypress rule violations in proposed change — edit BLOCKED.",
+  ...violations.map(formatViolation),
+]);

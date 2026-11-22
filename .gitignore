@@ -18,3 +18,26 @@ evidence/metrics.json
 .cursor/skills/
 .github/skills/
 .codex/skills/
+
+# GSD Core runtime. Installed per person by `node scripts/engine/install-gsd.mjs` (CI runs it too);
+# it writes machine-specific paths, so it is never committed.
+/.*/gsd-core/
+/.*/gsd-migration-journal/
+/.*/gsd-file-manifest.json
+/.*/gsd-install-state.json
+/.*/.gsd-profile
+/.*/agents/gsd-*
+/.*/commands/gsd-*
+/.*/hooks/gsd-*
+/.*/hooks/lib/
+/.*/skills/gsd-*
+/.claude/scripts/
+/.cursor/scripts/
+/.codex/scripts/
+/.github/scripts/
+/.codex/config.toml
+/.codex/hooks.json
+/.*/hooks/managed-hooks-registry.cjs
+/.*/hooks/package.json
+/.gsd/
+/.gsd-capabilities.json
