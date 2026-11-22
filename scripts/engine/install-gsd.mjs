@@ -143,6 +143,17 @@ function main(args) {
         );
         process.exit(1);
       }
+      // GSD's installers edit instruction files the harness owns (Copilot's
+      // copilot-instructions.md among them). Re-project them so a first install
+      // never leaves the repo drifted from harness.config.json.
+      execFileSync(
+        process.execPath,
+        [join(root, "scripts", "engine", "sync.mjs")],
+        {
+          cwd: root,
+          stdio: "inherit",
+        },
+      );
     }
     const errors = gsdErrors(root);
     if (errors.some((e) => e.includes("capability"))) {

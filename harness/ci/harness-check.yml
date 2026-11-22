@@ -15,6 +15,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install the project
+        run: npm ci
+      - name: GSD Core and the qa-harness capability (conformance I8 needs them)
+        run: node scripts/engine/install-gsd.mjs
+      - name: Point git at the harness gate, as every clone does
+        run: git config core.hooksPath harness/githooks
       - name: Rules on new and changed code (baseline may only shrink, waivers valid)
         if: github.event_name == 'pull_request'
         run: node scripts/engine/check-rules.mjs --base "origin/${{ github.base_ref }}"
